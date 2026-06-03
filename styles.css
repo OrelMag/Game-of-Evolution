@@ -1,0 +1,262 @@
+/* ── Reset & variables ─────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:          #0d1117;
+  --bg-panel:    #161b27;
+  --bg-panel2:   #1e2436;
+  --border:      #2a3050;
+  --text:        #c8d0e8;
+  --text-dim:    #5a6480;
+  --text-bright: #e8ecf8;
+  --accent:      #5b8af5;
+  --accent-glow: rgba(91,138,245,0.25);
+  --red:         #e05a6a;
+  --green:       #4ade80;
+  --orange:      #fb923c;
+  --purple:      #a78bfa;
+
+  /* G / O / D letter colors */
+  --col-g: #4ade80;
+  --col-o: #fb923c;
+  --col-d: #a78bfa;
+
+  --panel-w: 240px;
+  --creature-w: 340px;
+  --header-h: 52px;
+  --radius: 8px;
+  --radius-sm: 4px;
+}
+
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; line-height: 1.5; }
+
+/* ── Layout ───────────────────────────────────────────────────────────── */
+#app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+#app-header {
+  height: var(--header-h);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+#app-header h1 { font-size: 16px; font-weight: 600; color: var(--text-bright); letter-spacing: 0.5px; }
+.header-right { display: flex; align-items: center; gap: 10px; }
+
+#app-main {
+  display: flex; flex: 1; overflow: hidden;
+}
+
+/* Left controls panel */
+#panel-controls {
+  width: var(--panel-w);
+  flex-shrink: 0;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 12px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+
+/* Center tree panel */
+#panel-tree {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+  background: var(--bg);
+}
+#tree-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+#tree-svg {
+  width: 100%; height: 100%;
+  cursor: grab;
+}
+#tree-svg:active { cursor: grabbing; }
+
+#tree-empty-msg {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-dim);
+  pointer-events: none;
+}
+#tree-empty-msg p { text-align: center; line-height: 1.8; }
+
+/* Predator tree (side panel) */
+#predator-tree-container {
+  width: 260px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#predator-tree-container.hidden { display: none; }
+.tree-label {
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+}
+.predator-label { color: var(--red); }
+#predator-tree-svg { flex: 1; }
+
+/* Right creature panel */
+#panel-creature {
+  width: var(--creature-w);
+  flex-shrink: 0;
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 12px;
+  display: flex; flex-direction: column;
+}
+#creature-detail-empty {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  color: var(--text-dim); text-align: center;
+}
+#creature-detail.hidden { display: none; }
+#creature-detail { display: flex; flex-direction: column; gap: 10px; }
+
+#creature-canvas {
+  width: 100%;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: #090c14;
+  display: block;
+}
+
+/* ── Controls ─────────────────────────────────────────────────────────── */
+.control-section { margin-bottom: 8px; }
+.control-section h2 {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase;
+  color: var(--text-dim); padding: 6px 0 8px; border-bottom: 1px solid var(--border);
+  margin-bottom: 10px;
+}
+
+.control-row {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  cursor: default;
+}
+.label-text { flex: 1; font-size: 12px; color: var(--text); white-space: nowrap; }
+.control-row input[type="range"] {
+  width: 80px; flex-shrink: 0;
+  accent-color: var(--accent);
+}
+.value-display {
+  font-size: 11px; font-weight: 600; color: var(--accent);
+  min-width: 36px; text-align: right;
+}
+
+/* Selection panel */
+.selection-section { }
+.selection-tabs { display: flex; gap: 4px; margin-bottom: 10px; flex-wrap: wrap; }
+.tab-btn {
+  padding: 4px 8px; font-size: 11px; font-weight: 600;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: transparent; color: var(--text-dim); cursor: pointer;
+  transition: all 0.15s;
+}
+.tab-btn:hover { color: var(--text); border-color: var(--accent); }
+.tab-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.selection-strength-row { margin-top: 8px; }
+
+/* Environment presets */
+.env-select {
+  width: 100%; padding: 5px 8px; border-radius: var(--radius-sm);
+  background: var(--bg-panel2); border: 1px solid var(--border);
+  color: var(--text); font-size: 12px; margin-bottom: 8px;
+}
+
+/* Target genome input */
+.target-input {
+  width: 100%; padding: 5px 8px; border-radius: var(--radius-sm);
+  background: var(--bg-panel2); border: 1px solid var(--border);
+  color: var(--col-g); font-size: 10px; font-family: monospace;
+  letter-spacing: 1px; word-break: break-all;
+  resize: vertical; min-height: 52px;
+}
+.target-input:focus { outline: 1px solid var(--accent); }
+.hamming-bar { height: 6px; border-radius: 3px; background: var(--border); margin-top: 6px; overflow: hidden; }
+.hamming-fill { height: 100%; background: var(--green); transition: width 0.3s; }
+
+/* ── Buttons ──────────────────────────────────────────────────────────── */
+.btn {
+  padding: 6px 14px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600;
+  cursor: pointer; border: 1px solid transparent; transition: all 0.15s;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #7aa3f8; }
+.btn-secondary { background: var(--bg-panel2); border-color: var(--border); color: var(--text); }
+.btn-secondary:hover { border-color: var(--accent); color: var(--text-bright); }
+.btn-ghost { background: transparent; border-color: var(--border); color: var(--text-dim); }
+.btn-ghost:hover { color: var(--text); border-color: var(--accent); }
+.btn-sm { padding: 4px 10px; font-size: 11px; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Creature meta ────────────────────────────────────────────────────── */
+.meta-row { display: flex; justify-content: space-between; align-items: center; padding: 3px 0; }
+.meta-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+.meta-row span:last-child { font-weight: 600; color: var(--text-bright); }
+
+.fitness-bar-row { margin-top: 4px; }
+#fitness-bar-track { height: 6px; border-radius: 3px; background: var(--border); width: 100%; overflow: hidden; }
+#fitness-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--green)); transition: width 0.4s; }
+
+/* Genome display */
+#genome-display h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-dim); margin-bottom: 6px; }
+#genome-parts { display: flex; flex-direction: column; gap: 3px; }
+
+.genome-part {
+  display: flex; align-items: center; gap: 6px;
+  padding: 3px 6px; border-radius: var(--radius-sm);
+  background: var(--bg-panel2); border: 1px solid var(--border);
+  font-family: monospace; font-size: 10px;
+}
+.genome-part-name { color: var(--text-dim); font-size: 9px; width: 88px; flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.4px; }
+.genome-part-seq { letter-spacing: 2px; }
+.g { color: var(--col-g); }
+.o { color: var(--col-o); }
+.d { color: var(--col-d); }
+
+#creature-nav { display: flex; gap: 8px; margin-top: 4px; }
+
+/* ── SVG tree styles ──────────────────────────────────────────────────── */
+.tree-edge {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1.5;
+  transition: stroke 0.2s;
+}
+.tree-edge.dead { stroke: #1e2030; stroke-dasharray: 4 4; }
+.tree-edge.predator { stroke: #3a1520; }
+
+.tree-node-group { cursor: pointer; }
+.tree-node-group:hover .node-ring { stroke: var(--accent); }
+
+.node-ring { stroke-width: 2.5; fill: var(--bg); transition: stroke 0.2s; }
+.node-ring.alive { stroke: var(--border); }
+.node-ring.dead { stroke: #252840; opacity: 0.5; }
+.node-ring.selected { stroke: var(--accent); stroke-width: 3.5; }
+.node-ring.predator-ring { stroke: var(--red); }
+
+.node-dead-overlay { fill: rgba(10, 12, 20, 0.65); pointer-events: none; }
+
+/* ── Hint / utility ───────────────────────────────────────────────────── */
+.hint { font-size: 11px; color: var(--text-dim); }
+.hint.warn { color: var(--orange); }
+.hidden { display: none !important; }
+
+/* ── Scrollbar ────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
