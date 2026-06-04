@@ -12,12 +12,15 @@ export class TreeView {
     this.isPredator = isPredator;
     this.onSelect   = onSelect;
 
-    this._renderer   = new CreatureRenderer();
-    this._transform  = { x: 0, y: 0, scale: 1 };
-    this._selectedId = null;
-    this._compareAId = null;
-    this._compareBId = null;
-    this._positions  = new Map();
+    this._renderer          = new CreatureRenderer();
+    this._transform         = { x: 0, y: 0, scale: 1 };
+    this._selectedId        = null;
+    this._compareAId        = null;
+    this._compareBId        = null;
+    this._positions         = new Map();
+    this._cladeRoot         = null;   // TreeNode reference for clade highlighting
+    this._mrcaNode          = null;   // TreeNode reference for MRCA highlight
+    this._generationCutoff  = null;   // dim nodes with generation > this value
 
     this._bindPanZoom();
   }
@@ -69,6 +72,9 @@ export class TreeView {
     }
 
     document.getElementById('tree-empty-msg')?.classList.add('hidden');
+
+    // Re-apply generation cutoff if active
+    if (this._generationCutoff !== null) this.setGenerationCutoff(this._generationCutoff);
   }
 
   /**
@@ -81,6 +87,8 @@ export class TreeView {
       this._drawNode(node);
     }
     this._reapplyCompareMarks();
+    this._reapplyCladeAndMRCA();
+    if (this._generationCutoff !== null) this.setGenerationCutoff(this._generationCutoff);
   }
 
   _reapplyCompareMarks() {
@@ -92,6 +100,63 @@ export class TreeView {
       const ring = this.svg.querySelector(`[data-id="${this._compareBId}"] .node-ring`);
       if (ring) ring.classList.add('compare-b');
     }
+  }
+
+  // ── Clade & MRCA ─────────────────────────────────────────────────────
+
+  /** Highlight all descendants of `node` with a clade CSS class. */
+  highlightClade(node) {
+    this.clearClade();
+    this._cladeRoot = node;
+    const descendants = node.getDescendants();
+    for (const desc of descendants) {
+      const g = this.svg.querySelector(`[data-id="${desc.id}"]`);
+      if (g) g.classList.add('clade-member');
+    }
+    const rootG = this.svg.querySelector(`[data-id="${node.id}"]`);
+    if (rootG) rootG.classList.add('clade-root');
+  }
+
+  clearClade() {
+    this.svg.querySelectorAll('.clade-member').forEach(el => el.classList.remove('clade-member'));
+    this.svg.querySelectorAll('.clade-root').forEach(el => el.classList.remove('clade-root'));
+    this._cladeRoot = null;
+  }
+
+  /** Add a gold ring to the MRCA node. */
+  highlightMRCA(node) {
+    this.clearMRCA();
+    this._mrcaNode = node;
+    const ring = this.svg.querySelector(`[data-id="${node.id}"] .node-ring`);
+    if (ring) ring.classList.add('mrca-highlight');
+  }
+
+  clearMRCA() {
+    if (this._mrcaNode !== null) {
+      const ring = this.svg.querySelector(`[data-id="${this._mrcaNode.id}"] .node-ring`);
+      if (ring) ring.classList.remove('mrca-highlight');
+      this._mrcaNode = null;
+    }
+  }
+
+  _reapplyCladeAndMRCA() {
+    if (this._cladeRoot) this.highlightClade(this._cladeRoot);
+    if (this._mrcaNode)  this.highlightMRCA(this._mrcaNode);
+  }
+
+  // ── Generation scrubber ───────────────────────────────────────────────
+
+  /** Dim nodes with generation > gen; undim all if gen is null. */
+  setGenerationCutoff(gen) {
+    this._generationCutoff = gen;
+    this.svg.querySelectorAll('.tree-node-group').forEach(g => {
+      const nodeGen = parseInt(g.dataset.gen, 10);
+      g.classList.toggle('future-node', nodeGen > gen);
+    });
+    this.edgesGroup.querySelectorAll('.tree-edge').forEach(path => {
+      const toGen = parseInt(path.dataset.toGen, 10);
+      path.classList.toggle('future-edge', toGen > gen);
+    });
   }
 
   clear() {
@@ -167,6 +232,7 @@ export class TreeView {
     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     g.setAttribute('class', 'tree-node-group');
     g.setAttribute('data-id', node.id);
+    g.setAttribute('data-gen', node.generation);
     g.setAttribute('transform', `translate(${x},${y})`);
 
     const tw = NODE_R * 2 - 4;
@@ -235,6 +301,7 @@ export class TreeView {
     path.setAttribute('class',
       `tree-edge ${!node.alive ? 'dead' : ''} ${this.isPredator ? 'predator' : ''}`
     );
+    path.dataset.toGen = node.generation;
     this.edgesGroup.appendChild(path);
   }
 

@@ -3,13 +3,16 @@ import { PART_NAMES } from '../creature/traits.js';
 import { nameCreature } from '../creature/namer.js';
 
 export class CreaturePanel {
-  constructor({ onGotoParent, onSetTarget, onCompare, onExitCompare }) {
+  constructor({ onGotoParent, onSetTarget, onCompare, onExitCompare, onFindMRCA }) {
     this.onGotoParent  = onGotoParent;
     this.onSetTarget   = onSetTarget;
     this.onCompare     = onCompare;
     this.onExitCompare = onExitCompare;
+    this.onFindMRCA    = onFindMRCA;
     this._renderer     = new CreatureRenderer();
     this._currentNode  = null;
+    this._compareNodeA = null;
+    this._compareNodeB = null;
 
     this._canvas        = document.getElementById('creature-canvas');
     this._detail        = document.getElementById('creature-detail');
@@ -37,6 +40,11 @@ export class CreaturePanel {
     this._btnShare?.addEventListener('click', () => this._shareCreature());
     this._btnCompare?.addEventListener('click', () => this.onCompare?.());
     document.getElementById('btn-exit-compare')?.addEventListener('click', () => this.onExitCompare?.());
+    document.getElementById('btn-find-mrca')?.addEventListener('click', () => {
+      if (this._compareNodeA && this._compareNodeB) {
+        this.onFindMRCA?.(this._compareNodeA, this._compareNodeB);
+      }
+    });
   }
 
   show(node) {
@@ -65,11 +73,14 @@ export class CreaturePanel {
   }
 
   showCompare(nodeA, nodeB) {
+    this._compareNodeA = nodeA;
+    this._compareNodeB = nodeB;
     this._detail.classList.add('hidden');
     this._comparePrompt.classList.add('hidden');
     this._btnCompare.textContent = '⊕ Compare';
 
     this._compareView.classList.remove('hidden');
+    document.getElementById('mrca-info').textContent = '';
 
     this._renderer.render(nodeA.genome, document.getElementById('compare-canvas-a'));
     this._renderer.render(nodeB.genome, document.getElementById('compare-canvas-b'));
@@ -89,10 +100,22 @@ export class CreaturePanel {
     this._renderCompareGenome(nodeA.genome, nodeB.genome);
   }
 
+  showMRCAInfo(mrca, genDistA, genDistB) {
+    const el = document.getElementById('mrca-info');
+    if (!el) return;
+    if (!mrca) {
+      el.textContent = 'No common ancestor found';
+      return;
+    }
+    el.textContent = `MRCA at Gen ${mrca.generation} (${genDistA} above A, ${genDistB} above B)`;
+  }
+
   exitCompare() {
     this._compareView.classList.add('hidden');
     this._comparePrompt.classList.add('hidden');
     this._btnCompare.textContent = '⊕ Compare';
+    this._compareNodeA = null;
+    this._compareNodeB = null;
     if (this._currentNode) {
       this._detail.classList.remove('hidden');
       this._empty.classList.add('hidden');

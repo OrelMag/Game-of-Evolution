@@ -46,6 +46,16 @@
           </label>
 
           <label class="control-row">
+            <span class="label-text">Mutation type</span>
+            <select id="ctrl-mutation-mode" class="speed-select">
+              <option value="point" selected>Point</option>
+              <option value="inversion">Inversion</option>
+              <option value="swap">Segment swap</option>
+              <option value="mixed">Mixed</option>
+            </select>
+          </label>
+
+          <label class="control-row">
             <span class="label-text">Playback speed</span>
             <select id="ctrl-speed" class="speed-select">
               <option value="1200">Slow</option>
@@ -59,6 +69,12 @@
             <input type="checkbox" id="ctrl-crossover" />
             <span class="label-text">Sexual reproduction</span>
           </label>
+
+          <div id="scrubber-row" class="control-row hidden">
+            <span class="label-text">View gen</span>
+            <input type="range" id="ctrl-scrubber" min="0" max="1" value="1" step="1" />
+            <span class="value-display" id="val-scrubber">—</span>
+          </div>
         </section>
 
         <!-- Selection panel injected here by selectionPanel.js -->
@@ -100,6 +116,16 @@
           <canvas id="stats-canvas"></canvas>
         </div>
         <button id="btn-show-stats" class="btn btn-ghost btn-sm stats-show-btn">📊 Stats</button>
+
+        <!-- Drift heatmap panel (collapsible) -->
+        <div id="drift-panel" class="hidden">
+          <div id="drift-header">
+            <span>Genome drift heatmap</span>
+            <button id="btn-toggle-drift" class="btn btn-ghost btn-sm" style="margin-left:auto;">Hide</button>
+          </div>
+          <canvas id="drift-canvas"></canvas>
+        </div>
+        <button id="btn-show-drift" class="btn btn-ghost btn-sm stats-show-btn">🧬 Drift</button>
       </section>
 
       <!-- Right panel: creature detail -->
@@ -173,6 +199,10 @@
               <span class="compare-stat-label">Relationship</span>
               <span id="compare-relationship" class="compare-stat-value"></span>
             </div>
+          </div>
+          <div class="compare-mrca-row">
+            <button id="btn-find-mrca" class="btn btn-ghost btn-sm">⬆ Find MRCA</button>
+            <span id="mrca-info" class="mrca-info"></span>
           </div>
           <div id="compare-genome-display">
             <h3>Genome diff</h3>

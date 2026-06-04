@@ -1,5 +1,6 @@
 import { Genome } from './genome/genome.js';
 import { Simulation } from './simulation/simulation.js';
+import { TreeNode } from './simulation/treeNode.js';
 import { StatsCollector } from './simulation/statsCollector.js';
 import { ControlsPanel } from './ui/controls.js';
 import { SelectionPanel } from './ui/selectionPanel.js';
@@ -7,6 +8,7 @@ import { TreeView } from './ui/treeView.js';
 import { CreaturePanel } from './ui/creaturePanel.js';
 import { StatsView } from './ui/statsView.js';
 import { VotingOverlay } from './ui/votingOverlay.js';
+import { DriftView } from './ui/driftView.js';
 
 // ── App state ─────────────────────────────────────────────────────────────
 let rootGenome   = Genome.random();
@@ -38,6 +40,11 @@ const controls = new ControlsPanel({
   onPause:     handlePause,
   onResume:    handleResume,
   onStep:      handleStep,
+  onScrub:     gen => {
+    preyTreeView.setGenerationCutoff(gen);
+    statsView.setTimeCursor(gen);
+    statsView.redraw();
+  },
 });
 
 const selectionPanel = new SelectionPanel({
@@ -74,15 +81,23 @@ const creaturePanel = new CreaturePanel({
   onSetTarget:   genome => selectionPanel.setTargetFromGenome(genome),
   onCompare:     () => handleEnterCompareMode(),
   onExitCompare: () => handleExitCompareMode(),
+  onFindMRCA:    (nodeA, nodeB) => handleFindMRCA(nodeA, nodeB),
 });
 
-const statsView    = new StatsView('stats-canvas');
+const statsView     = new StatsView('stats-canvas');
+const driftView     = new DriftView('drift-canvas');
 const votingOverlay = new VotingOverlay();
+
+let _maxGen = 0;
 
 // ── Playback ──────────────────────────────────────────────────────────────
 
 function startPlayback({ generations, branchingFactor, mutationRate }) {
   handleExitCompareMode();
+  preyTreeView.clearClade();
+  preyTreeView.clearMRCA();
+  controls.hideScrubber();
+  _maxGen = 0;
   // Cancel any in-progress playback
   clearTimeout(_playbackTimer);
   _playbackTimer    = null;
@@ -94,8 +109,8 @@ function startPlayback({ generations, branchingFactor, mutationRate }) {
   if (predatorMode) selEngine = _wrapWithPredator(engine, predatorMode);
 
   _currentSelEngine  = selEngine.modes?.length > 0 ? selEngine : null;
-  _currentStrength   = _getSelectionStrength(selectionPanel);
-  _artificialMode    = selectionPanel.activeTab === 'player';
+  _currentStrength   = selectionPanel.selectionStrength;
+  _artificialMode    = selectionPanel.isPlayerMode;
   _statsCollector    = new StatsCollector();
   statsView.update([]);
 
@@ -107,6 +122,7 @@ function startPlayback({ generations, branchingFactor, mutationRate }) {
     selectionEngine:   _currentSelEngine,
     selectionStrength: _currentStrength,
     useCrossover:      controls.useCrossover,
+    mutationMode:      controls.mutationMode,
   });
 
   currentRoot  = sim.root;
@@ -146,15 +162,18 @@ function _runStep() {
     _stepInProgress = false;
     _playbackState  = 'done';
     controls.setPlaybackState('done');
+    controls.showScrubber(_maxGen);
     return;
   }
 
   const { generation, newNodes } = value;
+  if (generation > _maxGen) _maxGen = generation;
 
   // Show new nodes (all alive initially — selection result shown after a brief delay)
   preyTreeView.addGeneration(currentRoot, newNodes);
   _statsCollector.record(generation, newNodes);
   statsView.update(_statsCollector.generations);
+  driftView.updateLatest(_statsCollector);
 
   // Player voting mode — async, does not auto-advance
   if (_artificialMode) {
@@ -246,13 +265,38 @@ function _toggleStats() {
   const panel   = document.getElementById('stats-panel');
   const showBtn = document.getElementById('btn-show-stats');
   if (!panel) return;
-  // toggle() returns true when the class was ADDED (panel just became hidden)
   const justHid = panel.classList.toggle('hidden');
   if (showBtn) showBtn.classList.toggle('hidden', !justHid);
   if (!justHid) statsView.update(_statsCollector.generations);
 }
 document.getElementById('btn-toggle-stats')?.addEventListener('click', _toggleStats);
 document.getElementById('btn-show-stats')?.addEventListener('click', _toggleStats);
+
+// ── Drift heatmap toggle ──────────────────────────────────────────────────
+function _toggleDrift() {
+  const panel   = document.getElementById('drift-panel');
+  const showBtn = document.getElementById('btn-show-drift');
+  if (!panel) return;
+  const justHid = panel.classList.toggle('hidden');
+  if (showBtn) showBtn.classList.toggle('hidden', !justHid);
+  if (!justHid) driftView.updateLatest(_statsCollector);
+}
+document.getElementById('btn-toggle-drift')?.addEventListener('click', _toggleDrift);
+document.getElementById('btn-show-drift')?.addEventListener('click', _toggleDrift);
+
+// ── MRCA finder ───────────────────────────────────────────────────────────
+function handleFindMRCA(nodeA, nodeB) {
+  const mrca = TreeNode.findMRCA(nodeA, nodeB);
+  if (!mrca) {
+    creaturePanel.showMRCAInfo(null, 0, 0);
+    return;
+  }
+  const genDistA = nodeA.generation - mrca.generation;
+  const genDistB = nodeB.generation - mrca.generation;
+  creaturePanel.showMRCAInfo(mrca, genDistA, genDistB);
+  preyTreeView.highlightMRCA(mrca);
+  preyTreeView.highlightClade(mrca);
+}
 
 // ── Other handlers ────────────────────────────────────────────────────────
 
@@ -325,14 +369,6 @@ function handleShowComparison(nodeA, nodeB) {
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
-function _getSelectionStrength(panel) {
-  const tab = panel.activeTab;
-  if (tab === 'env')     return parseInt(document.getElementById('env-strength')?.value ?? 60, 10) / 100;
-  if (tab === 'target')  return parseInt(document.getElementById('target-strength')?.value ?? 70, 10) / 100;
-  if (tab === 'predator') return parseInt(document.getElementById('pred-strength')?.value ?? 65, 10) / 100;
-  return 0;
-}
-
 function _wrapWithPredator(engine, predatorMode) {
   let lastGen = -1;
   let lastPreyFrontier = [];
@@ -353,6 +389,57 @@ function _wrapWithPredator(engine, predatorMode) {
     },
   };
 }
+
+// ── Keyboard shortcuts ────────────────────────────────────────────────────
+window.addEventListener('keydown', e => {
+  const tag = document.activeElement?.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+  switch (e.key) {
+    case ' ':
+      e.preventDefault();
+      if (_playbackState === 'playing') handlePause();
+      else if (_playbackState === 'paused') handleResume();
+      break;
+    case 'f':
+    case 'F':
+      preyTreeView.fitView();
+      break;
+    case 'Escape':
+      preyTreeView.clearClade();
+      preyTreeView.clearMRCA();
+      if (compareMode || compareNodeA) handleExitCompareMode();
+      break;
+    case 'ArrowRight':
+      if (selectedNode && selectedNode.children.length > 0) {
+        const child = selectedNode.children[0];
+        selectedNode = child;
+        preyTreeView.selectNode(child.id);
+        creaturePanel.show(child);
+        selectionPanel.updateHammingFor(child.genome);
+      }
+      break;
+    case 'ArrowLeft':
+      if (selectedNode && selectedNode.parent) {
+        const parent = selectedNode.parent;
+        selectedNode = parent;
+        preyTreeView.selectNode(parent.id);
+        creaturePanel.show(parent);
+        selectionPanel.updateHammingFor(parent.genome);
+      }
+      break;
+    case 's':
+    case 'S':
+      if (_playbackState === 'paused' || _playbackState === 'idle' || _playbackState === 'done') {
+        handleStep();
+      }
+      break;
+    case 'g':
+    case 'G':
+      document.getElementById('ctrl-generations')?.focus();
+      break;
+  }
+});
 
 // ── URL hash: restore a shared creature on load ───────────────────────────
 window.addEventListener('DOMContentLoaded', () => {

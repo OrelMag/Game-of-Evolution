@@ -14,6 +14,7 @@ export class Simulation {
    * @param {import('../selection/selectionEngine.js').SelectionEngine} [opts.selectionEngine]
    * @param {number}  [opts.selectionStrength]   0–1
    * @param {boolean} [opts.useCrossover]         enable sexual reproduction
+   * @param {string}  [opts.mutationMode]         'point'|'inversion'|'swap'|'mixed'
    * @param {import('./statsCollector.js').StatsCollector} [opts.statsCollector]
    */
   constructor({
@@ -24,6 +25,7 @@ export class Simulation {
     selectionEngine   = null,
     selectionStrength = 0,
     useCrossover      = false,
+    mutationMode      = 'point',
     statsCollector    = null,
   }) {
     this.generations      = generations;
@@ -32,6 +34,7 @@ export class Simulation {
     this.selectionEngine  = selectionEngine;
     this.selectionStrength = selectionStrength;
     this.useCrossover     = useCrossover;
+    this.mutationMode     = mutationMode;
     this.statsCollector   = statsCollector;
 
     TreeNode.resetIdCounter();
@@ -41,9 +44,12 @@ export class Simulation {
   _makeChildGenome(parent, frontier) {
     if (this.useCrossover && frontier.length >= 2) {
       const mate = _randomMate(frontier, parent);
-      if (mate) return this.mutator.crossoverAndMutate(parent.genome, mate.genome);
+      if (mate) return this.mutator.mutateWithMode(
+        this.mutator.crossover(parent.genome, mate.genome),
+        this.mutationMode
+      );
     }
-    return this.mutator.mutate(parent.genome);
+    return this.mutator.mutateWithMode(parent.genome, this.mutationMode);
   }
 
   /** Run all generations synchronously. Returns root TreeNode. */

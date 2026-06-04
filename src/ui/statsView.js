@@ -8,10 +8,17 @@ const PAD = { left: 36, right: 12, top: 10, bottom: 28 };
 
 export class StatsView {
   constructor(canvasId) {
-    this._canvas = document.getElementById(canvasId);
+    this._canvas     = document.getElementById(canvasId);
+    this._timeCursor = null;
+    this._lastData   = [];
   }
 
+  setTimeCursor(gen) { this._timeCursor = gen; }
+
+  redraw() { this.update(this._lastData); }
+
   update(data) {
+    this._lastData = data;
     if (!this._canvas) return;
 
     // Sync logical pixel size to CSS size for crisp rendering
@@ -70,6 +77,21 @@ export class StatsView {
       const ly = PAD.top + (1 - Math.max(0, Math.min(1, last[key]))) * chartH;
       ctx.fillStyle = color;
       ctx.beginPath(); ctx.arc(lx, ly, 2.5, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Time cursor vertical line (generation scrubber)
+    if (this._timeCursor !== null && data.length > 1) {
+      const cursorFrac = (this._timeCursor - 1) / Math.max(1, maxGen - 1);
+      const cx = PAD.left + cursorFrac * chartW;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      ctx.moveTo(cx, PAD.top);
+      ctx.lineTo(cx, PAD.top + chartH);
+      ctx.stroke();
+      ctx.restore();
     }
 
     _drawLegend(ctx, W, H);

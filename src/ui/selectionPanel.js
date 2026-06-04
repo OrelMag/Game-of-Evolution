@@ -5,17 +5,16 @@ import { PredatorMode } from '../selection/predatorMode.js';
 import { Genome } from '../genome/genome.js';
 
 /**
- * Selection panel — tabbed UI for the three selection modes.
+ * Selection panel — accordion UI allowing multiple simultaneous selection modes.
  * Injects its DOM into #selection-panel-mount.
  * Exposes buildEngine() which returns a configured SelectionEngine.
  */
 export class SelectionPanel {
   constructor({ onTargetPick }) {
-    this.onTargetPick = onTargetPick; // called when "Pick from tree" is clicked
-    this._activeTab   = 'none';
-    this._targetMode  = new TargetMode();
-    this._envMode     = new EnvironmentMode('deepSea');
-    this._predMode    = null; // created on demand in buildEngine()
+    this.onTargetPick  = onTargetPick;
+    this._enabledModes = new Set();
+    this._targetMode   = new TargetMode();
+    this._envMode      = new EnvironmentMode('deepSea');
 
     this._mount = document.getElementById('selection-panel-mount');
     this._render();
@@ -26,91 +25,109 @@ export class SelectionPanel {
     this._mount.innerHTML = `
       <section class="control-section selection-section">
         <h2>Selection pressure</h2>
-        <div class="selection-tabs">
-          <button class="tab-btn active" data-tab="none">None</button>
-          <button class="tab-btn" data-tab="env">Environment</button>
-          <button class="tab-btn" data-tab="target">Target</button>
-          <button class="tab-btn" data-tab="predator">Predator</button>
-          <button class="tab-btn" data-tab="player">Player</button>
-        </div>
 
-        <!-- None -->
-        <div class="tab-content active" data-content="none">
-          <p style="font-size:11px;color:var(--text-dim);">Pure drift — no fitness filtering.</p>
-        </div>
-
-        <!-- Environment -->
-        <div class="tab-content" data-content="env">
-          <select class="env-select" id="env-select">
-            ${Object.entries(ENVIRONMENTS).map(([k, v]) =>
-              `<option value="${k}">${v.label}</option>`
-            ).join('')}
-          </select>
-          <label class="control-row selection-strength-row">
-            <span class="label-text">Strength</span>
-            <input type="range" id="env-strength" min="0" max="100" value="60" />
-            <span class="value-display" id="val-env-strength">60%</span>
+        <div class="sel-section">
+          <label class="sel-section-header">
+            <input type="checkbox" id="chk-env" />
+            <span>Environment</span>
           </label>
-        </div>
-
-        <!-- Target -->
-        <div class="tab-content" data-content="target">
-          <textarea class="target-input" id="target-genome" placeholder="120-char G/O/D string…" rows="3"></textarea>
-          <div style="display:flex;gap:6px;margin-top:6px;">
-            <button class="btn btn-secondary btn-sm" id="btn-random-target">↺ Random</button>
-            <button class="btn btn-ghost btn-sm" id="btn-pick-target">🖱 Pick from tree</button>
+          <div class="sel-section-body hidden" id="sel-body-env">
+            <select class="env-select" id="env-select">
+              ${Object.entries(ENVIRONMENTS).map(([k, v]) =>
+                `<option value="${k}">${v.label}</option>`
+              ).join('')}
+            </select>
+            <label class="control-row selection-strength-row">
+              <span class="label-text">Strength</span>
+              <input type="range" id="env-strength" min="0" max="100" value="60" />
+              <span class="value-display" id="val-env-strength">60%</span>
+            </label>
           </div>
-          <div class="hamming-bar" style="margin-top:8px;">
-            <div class="hamming-fill" id="hamming-fill" style="width:0%"></div>
+        </div>
+
+        <div class="sel-section">
+          <label class="sel-section-header">
+            <input type="checkbox" id="chk-target" />
+            <span>Target genome</span>
+          </label>
+          <div class="sel-section-body hidden" id="sel-body-target">
+            <textarea class="target-input" id="target-genome" placeholder="120-char G/O/D string…" rows="3"></textarea>
+            <div style="display:flex;gap:6px;margin-top:6px;">
+              <button class="btn btn-secondary btn-sm" id="btn-random-target">↺ Random</button>
+              <button class="btn btn-ghost btn-sm" id="btn-pick-target">🖱 Pick from tree</button>
+            </div>
+            <div class="hamming-bar" style="margin-top:8px;">
+              <div class="hamming-fill" id="hamming-fill" style="width:0%"></div>
+            </div>
+            <p style="font-size:10px;color:var(--text-dim);margin-top:3px;" id="hamming-label">No target set</p>
+            <label class="control-row selection-strength-row">
+              <span class="label-text">Strength</span>
+              <input type="range" id="target-strength" min="0" max="100" value="70" />
+              <span class="value-display" id="val-target-strength">70%</span>
+            </label>
           </div>
-          <p style="font-size:10px;color:var(--text-dim);margin-top:3px;" id="hamming-label">No target set</p>
-          <label class="control-row selection-strength-row">
-            <span class="label-text">Strength</span>
-            <input type="range" id="target-strength" min="0" max="100" value="70" />
-            <span class="value-display" id="val-target-strength">70%</span>
-          </label>
         </div>
 
-        <!-- Player -->
-        <div class="tab-content" data-content="player">
-          <p style="font-size:11px;color:var(--text-dim);">
-            After each generation you choose which creatures survive.<br>
-            Click a creature card to keep or cull it, then confirm.
-          </p>
+        <div class="sel-section">
+          <label class="sel-section-header">
+            <input type="checkbox" id="chk-predator" />
+            <span>Predator</span>
+          </label>
+          <div class="sel-section-body hidden" id="sel-body-predator">
+            <p style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">
+              A second lineage evolves to track prey. Prey evolves to evade.<br>
+              <span style="color:var(--red);">Red tree</span> = predator.
+            </p>
+            <label class="control-row">
+              <span class="label-text">Pred. mutation</span>
+              <input type="range" id="pred-mutation" min="1" max="100" value="20" />
+              <span class="value-display" id="val-pred-mutation">1.5%</span>
+            </label>
+            <label class="control-row selection-strength-row">
+              <span class="label-text">Strength</span>
+              <input type="range" id="pred-strength" min="0" max="100" value="65" />
+              <span class="value-display" id="val-pred-strength">65%</span>
+            </label>
+          </div>
         </div>
 
-        <!-- Predator -->
-        <div class="tab-content" data-content="predator">
-          <p style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">
-            A second lineage evolves to track prey. Prey evolves to evade.<br>
-            <span style="color:var(--red);">Red tree</span> = predator.
-          </p>
-          <label class="control-row">
-            <span class="label-text">Pred. mutation</span>
-            <input type="range" id="pred-mutation" min="1" max="100" value="20" />
-            <span class="value-display" id="val-pred-mutation">1.5%</span>
+        <div class="sel-section">
+          <label class="sel-section-header">
+            <input type="checkbox" id="chk-player" />
+            <span>Player selection</span>
           </label>
-          <label class="control-row selection-strength-row">
-            <span class="label-text">Strength</span>
-            <input type="range" id="pred-strength" min="0" max="100" value="65" />
-            <span class="value-display" id="val-pred-strength">65%</span>
-          </label>
+          <div class="sel-section-body hidden" id="sel-body-player">
+            <p style="font-size:11px;color:var(--text-dim);">
+              After each generation you choose which creatures survive.<br>
+              Click a creature card to keep or cull it, then confirm.
+            </p>
+          </div>
         </div>
       </section>
     `;
   }
 
   _bind() {
-    // Tab switching
-    this._mount.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        this._activeTab = btn.dataset.tab;
-        this._mount.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        this._mount.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        btn.classList.add('active');
-        this._mount.querySelector(`[data-content="${this._activeTab}"]`).classList.add('active');
+    const modeCheckboxes = [
+      { id: 'chk-env',      key: 'env' },
+      { id: 'chk-target',   key: 'target' },
+      { id: 'chk-predator', key: 'predator' },
+      { id: 'chk-player',   key: 'player' },
+    ];
+
+    for (const { id, key } of modeCheckboxes) {
+      const chk  = document.getElementById(id);
+      const body = document.getElementById(`sel-body-${key}`);
+      chk?.addEventListener('change', () => {
+        if (chk.checked) {
+          this._enabledModes.add(key);
+          body?.classList.remove('hidden');
+        } else {
+          this._enabledModes.delete(key);
+          body?.classList.add('hidden');
+        }
       });
-    });
+    }
 
     // Environment select
     document.getElementById('env-select')?.addEventListener('change', e => {
@@ -166,7 +183,6 @@ export class SelectionPanel {
   }
 
   _updateHamming(targetGenome) {
-    // Show similarity to a new random genome as baseline indicator
     const sim = targetGenome ? 1 - Genome.random().hammingDistance(targetGenome) / 120 : 0;
     document.getElementById('hamming-fill').style.width = (sim * 100).toFixed(1) + '%';
     document.getElementById('hamming-label').textContent = 'Target set ✓';
@@ -190,45 +206,46 @@ export class SelectionPanel {
 
   /**
    * Build a SelectionEngine from current UI state.
-   * Returns { engine, predatorMode } — predatorMode is non-null only in predator tab.
+   * All checked modes contribute simultaneously.
+   * Returns { engine, predatorMode } — predatorMode is non-null only when predator is enabled.
    */
   buildEngine(branchingFactor, mutationRate) {
     const modes = [];
     let predatorMode = null;
 
-    if (this._activeTab === 'player') {
-      // Artificial selection — no automatic engine needed
-      return { engine: new SelectionEngine([]), predatorMode: null };
-    }
-
-    if (this._activeTab === 'env') {
+    if (this._enabledModes.has('env')) {
       const strength = parseInt(document.getElementById('env-strength').value, 10) / 100;
       modes.push({ mode: this._envMode, strength });
+    }
 
-    } else if (this._activeTab === 'target') {
-      if (this._targetMode.target) {
-        const strength = parseInt(document.getElementById('target-strength').value, 10) / 100;
-        modes.push({ mode: this._targetMode, strength });
-      }
+    if (this._enabledModes.has('target') && this._targetMode.target) {
+      const strength = parseInt(document.getElementById('target-strength').value, 10) / 100;
+      modes.push({ mode: this._targetMode, strength });
+    }
 
-    } else if (this._activeTab === 'predator') {
+    if (this._enabledModes.has('predator')) {
       const mv = parseInt(document.getElementById('pred-mutation').value, 10);
       const predRate = Math.round(0.001 * Math.pow(100, (mv - 1) / 99) * 1000) / 1000;
-      predatorMode = new PredatorMode({
-        mutationRate:    predRate,
-        branchingFactor: branchingFactor,
-      });
+      predatorMode = new PredatorMode({ mutationRate: predRate, branchingFactor });
       predatorMode.init();
       const strength = parseInt(document.getElementById('pred-strength').value, 10) / 100;
       modes.push({ mode: predatorMode, strength });
     }
 
-    const engine = modes.length > 0
-      ? new SelectionEngine(modes)
-      : new SelectionEngine([]);
-
-    return { engine, predatorMode };
+    return { engine: new SelectionEngine(modes), predatorMode };
   }
 
-  get activeTab() { return this._activeTab; }
+  /** Returns max strength among all enabled computational modes (used for applySelection). */
+  get selectionStrength() {
+    let max = 0;
+    if (this._enabledModes.has('env'))
+      max = Math.max(max, parseInt(document.getElementById('env-strength')?.value ?? 60, 10) / 100);
+    if (this._enabledModes.has('target'))
+      max = Math.max(max, parseInt(document.getElementById('target-strength')?.value ?? 70, 10) / 100);
+    if (this._enabledModes.has('predator'))
+      max = Math.max(max, parseInt(document.getElementById('pred-strength')?.value ?? 65, 10) / 100);
+    return max;
+  }
+
+  get isPlayerMode() { return this._enabledModes.has('player'); }
 }

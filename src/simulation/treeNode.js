@@ -45,5 +45,46 @@ export class TreeNode {
     return result;
   }
 
+  /** BFS collect all descendant nodes (not including this node). */
+  getDescendants() {
+    const result = [];
+    const queue = [...this.children];
+    while (queue.length) {
+      const node = queue.shift();
+      result.push(node);
+      for (const child of node.children) queue.push(child);
+    }
+    return result;
+  }
+
+  /**
+   * Returns a Map<id, TreeNode> of all ancestors of `node` (not including the node itself).
+   * Walks up the primary parent chain only.
+   */
+  static getAncestors(node) {
+    const ancestors = new Map();
+    let cursor = node.parent;
+    while (cursor !== null) {
+      ancestors.set(cursor.id, cursor);
+      cursor = cursor.parent;
+    }
+    return ancestors;
+  }
+
+  /**
+   * Finds the Most Recent Common Ancestor of nodeA and nodeB.
+   * Returns the MRCA TreeNode, or null if no common ancestor exists.
+   */
+  static findMRCA(nodeA, nodeB) {
+    const ancestorsA = TreeNode.getAncestors(nodeA);
+    ancestorsA.set(nodeA.id, nodeA); // nodeA itself is a candidate
+    let cursor = nodeB;
+    while (cursor !== null) {
+      if (ancestorsA.has(cursor.id)) return cursor;
+      cursor = cursor.parent;
+    }
+    return null;
+  }
+
   static resetIdCounter() { nextId = 0; }
 }

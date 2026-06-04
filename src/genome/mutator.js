@@ -1,4 +1,4 @@
-import { Genome, ALPHABET, TOTAL_LENGTH } from './genome.js';
+import { Genome, ALPHABET, TOTAL_LENGTH, PART_COUNT, PART_LENGTH } from './genome.js';
 
 export class Mutator {
   constructor({ mutationRate = 0.01 } = {}) {
@@ -14,6 +14,44 @@ export class Mutator {
       }
     }
     return new Genome(chars.join(''));
+  }
+
+  // Reverses the 8-char substring of a randomly chosen body part
+  invertGene(genome) {
+    const partIndex = Math.floor(Math.random() * PART_COUNT);
+    const start = partIndex * PART_LENGTH;
+    const chars = [...genome.sequence];
+    const sub = chars.slice(start, start + PART_LENGTH).reverse();
+    chars.splice(start, PART_LENGTH, ...sub);
+    return new Genome(chars.join(''));
+  }
+
+  // Picks two random distinct part indices and swaps their 8-char substrings
+  swapSegments(genome) {
+    const idxA = Math.floor(Math.random() * PART_COUNT);
+    let idxB = Math.floor(Math.random() * (PART_COUNT - 1));
+    if (idxB >= idxA) idxB++;
+    const chars = [...genome.sequence];
+    const a = chars.slice(idxA * PART_LENGTH, (idxA + 1) * PART_LENGTH);
+    const b = chars.slice(idxB * PART_LENGTH, (idxB + 1) * PART_LENGTH);
+    chars.splice(idxA * PART_LENGTH, PART_LENGTH, ...b);
+    chars.splice(idxB * PART_LENGTH, PART_LENGTH, ...a);
+    return new Genome(chars.join(''));
+  }
+
+  // mode: 'point' | 'inversion' | 'swap' | 'mixed'
+  mutateWithMode(genome, mode = 'point') {
+    switch (mode) {
+      case 'inversion': return this.invertGene(genome);
+      case 'swap':      return this.swapSegments(genome);
+      case 'mixed': {
+        const r = Math.random();
+        if (r < 0.34) return this.mutate(genome);
+        if (r < 0.67) return this.invertGene(genome);
+        return this.swapSegments(genome);
+      }
+      default: return this.mutate(genome);
+    }
   }
 
   // Single-point crossover: genomeA[:point] + genomeB[point:]
