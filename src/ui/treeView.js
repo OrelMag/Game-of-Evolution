@@ -1,4 +1,5 @@
 import { CreatureRenderer } from '../creature/renderer.js';
+import { SpeciationEngine } from '../simulation/speciationEngine.js';
 
 const NODE_R   = 28;   // circle radius
 const GEN_GAP  = 130;  // horizontal px between generations
@@ -21,6 +22,7 @@ export class TreeView {
     this._cladeRoot         = null;   // TreeNode reference for clade highlighting
     this._mrcaNode          = null;   // TreeNode reference for MRCA highlight
     this._generationCutoff  = null;   // dim nodes with generation > this value
+    this.showSpeciesColors  = false;  // controlled by SpeciationEngine
 
     this._bindPanZoom();
   }
@@ -234,6 +236,21 @@ export class TreeView {
     g.setAttribute('data-id', node.id);
     g.setAttribute('data-gen', node.generation);
     g.setAttribute('transform', `translate(${x},${y})`);
+
+    // Species colour ring — drawn first so it sits behind all other elements
+    if (this.showSpeciesColors && node.speciesId != null) {
+      const speciesColor = SpeciationEngine.colorFor(node.speciesId);
+      if (speciesColor) {
+        const speciesRing = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        speciesRing.setAttribute('r', NODE_R + 4);
+        speciesRing.setAttribute('fill', 'none');
+        speciesRing.setAttribute('stroke', speciesColor);
+        speciesRing.setAttribute('stroke-width', '3');
+        speciesRing.setAttribute('opacity', '0.85');
+        speciesRing.setAttribute('class', 'species-ring');
+        g.appendChild(speciesRing);
+      }
+    }
 
     const tw = NODE_R * 2 - 4;
     const th = Math.round(tw * 390 / 320);

@@ -2,6 +2,8 @@ import { SelectionEngine } from '../selection/selectionEngine.js';
 import { EnvironmentMode, ENVIRONMENTS } from '../selection/environmentMode.js';
 import { TargetMode } from '../selection/targetMode.js';
 import { PredatorMode } from '../selection/predatorMode.js';
+import { ResourceMode } from '../selection/resourceMode.js';
+import { EpistasisMode } from '../selection/epistasisMode.js';
 import { Genome } from '../genome/genome.js';
 
 /**
@@ -12,9 +14,11 @@ import { Genome } from '../genome/genome.js';
 export class SelectionPanel {
   constructor({ onTargetPick }) {
     this.onTargetPick  = onTargetPick;
-    this._enabledModes = new Set();
-    this._targetMode   = new TargetMode();
-    this._envMode      = new EnvironmentMode('deepSea');
+    this._enabledModes  = new Set();
+    this._targetMode    = new TargetMode();
+    this._envMode       = new EnvironmentMode('deepSea');
+    this._resourceMode  = new ResourceMode();
+    this._epistasisMode = new EpistasisMode();
 
     this._mount = document.getElementById('selection-panel-mount');
     this._render();
@@ -93,6 +97,47 @@ export class SelectionPanel {
 
         <div class="sel-section">
           <label class="sel-section-header">
+            <input type="checkbox" id="chk-resource" />
+            <span>Resource competition</span>
+          </label>
+          <div class="sel-section-body hidden" id="sel-body-resource">
+            <p style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">
+              Creatures with similar genomes compete for the same niche.<br>
+              Crowded niches reduce fitness.
+            </p>
+            <label class="control-row">
+              <span class="label-text">Niche radius</span>
+              <input type="range" id="resource-niche-radius" min="1" max="100" value="25" />
+              <span class="value-display" id="val-resource-niche">25%</span>
+            </label>
+            <label class="control-row selection-strength-row">
+              <span class="label-text">Strength</span>
+              <input type="range" id="resource-strength" min="0" max="100" value="60" />
+              <span class="value-display" id="val-resource-strength">60%</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="sel-section">
+          <label class="sel-section-header">
+            <input type="checkbox" id="chk-epistasis" />
+            <span>Epistasis</span>
+          </label>
+          <div class="sel-section-body hidden" id="sel-body-epistasis">
+            <p style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">
+              Gene interactions: compatible body plans score bonuses;<br>
+              mismatched morphologies are penalised.
+            </p>
+            <label class="control-row selection-strength-row">
+              <span class="label-text">Strength</span>
+              <input type="range" id="epistasis-strength" min="0" max="100" value="40" />
+              <span class="value-display" id="val-epistasis-strength">40%</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="sel-section">
+          <label class="sel-section-header">
             <input type="checkbox" id="chk-player" />
             <span>Player selection</span>
           </label>
@@ -109,10 +154,12 @@ export class SelectionPanel {
 
   _bind() {
     const modeCheckboxes = [
-      { id: 'chk-env',      key: 'env' },
-      { id: 'chk-target',   key: 'target' },
-      { id: 'chk-predator', key: 'predator' },
-      { id: 'chk-player',   key: 'player' },
+      { id: 'chk-env',       key: 'env' },
+      { id: 'chk-target',    key: 'target' },
+      { id: 'chk-predator',  key: 'predator' },
+      { id: 'chk-resource',  key: 'resource' },
+      { id: 'chk-epistasis', key: 'epistasis' },
+      { id: 'chk-player',    key: 'player' },
     ];
 
     for (const { id, key } of modeCheckboxes) {
@@ -154,6 +201,20 @@ export class SelectionPanel {
     // Target strength
     document.getElementById('target-strength')?.addEventListener('input', e => {
       document.getElementById('val-target-strength').textContent = e.target.value + '%';
+    });
+
+    // Resource competition
+    document.getElementById('resource-niche-radius')?.addEventListener('input', e => {
+      this._resourceMode.nicheRadius = parseInt(e.target.value, 10) / 100;
+      document.getElementById('val-resource-niche').textContent = e.target.value + '%';
+    });
+    document.getElementById('resource-strength')?.addEventListener('input', e => {
+      document.getElementById('val-resource-strength').textContent = e.target.value + '%';
+    });
+
+    // Epistasis strength
+    document.getElementById('epistasis-strength')?.addEventListener('input', e => {
+      document.getElementById('val-epistasis-strength').textContent = e.target.value + '%';
     });
 
     // Predator mutation rate display
@@ -232,6 +293,16 @@ export class SelectionPanel {
       modes.push({ mode: predatorMode, strength });
     }
 
+    if (this._enabledModes.has('resource')) {
+      const strength = parseInt(document.getElementById('resource-strength').value, 10) / 100;
+      modes.push({ mode: this._resourceMode, strength });
+    }
+
+    if (this._enabledModes.has('epistasis')) {
+      const strength = parseInt(document.getElementById('epistasis-strength').value, 10) / 100;
+      modes.push({ mode: this._epistasisMode, strength });
+    }
+
     return { engine: new SelectionEngine(modes), predatorMode };
   }
 
@@ -244,6 +315,10 @@ export class SelectionPanel {
       max = Math.max(max, parseInt(document.getElementById('target-strength')?.value ?? 70, 10) / 100);
     if (this._enabledModes.has('predator'))
       max = Math.max(max, parseInt(document.getElementById('pred-strength')?.value ?? 65, 10) / 100);
+    if (this._enabledModes.has('resource'))
+      max = Math.max(max, parseInt(document.getElementById('resource-strength')?.value ?? 60, 10) / 100);
+    if (this._enabledModes.has('epistasis'))
+      max = Math.max(max, parseInt(document.getElementById('epistasis-strength')?.value ?? 40, 10) / 100);
     return max;
   }
 

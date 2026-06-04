@@ -22,7 +22,9 @@ export class ControlsPanel {
     this._btnPause     = document.getElementById('btn-pause');
     this._btnStep      = document.getElementById('btn-step');
     this._btnRandomize = document.getElementById('btn-randomize');
-    this._chkCrossover = document.getElementById('ctrl-crossover');
+    this._transpositionSlider = document.getElementById('ctrl-transposition');
+    this._inversionSlider     = document.getElementById('ctrl-inversion');
+    this._chkCrossover        = document.getElementById('ctrl-crossover');
     this._scrubberRow  = document.getElementById('scrubber-row');
     this._scrubber     = document.getElementById('ctrl-scrubber');
     this._scrubberVal  = document.getElementById('val-scrubber');
@@ -40,7 +42,9 @@ export class ControlsPanel {
   get branchingFactor() { return parseInt(this._branchSlider.value, 10); }
   get useCrossover()    { return this._chkCrossover?.checked ?? false; }
   get playbackSpeed()   { return parseInt(this._speedSelect?.value ?? '500', 10); }
-  get mutationMode()    { return this._mutModeSelect?.value ?? 'point'; }
+  get mutationMode()        { return this._mutModeSelect?.value ?? 'point'; }
+  get transpositionRate()   { return parseInt(this._transpositionSlider?.value ?? 0, 10) / 100; }
+  get inversionRate()       { return parseInt(this._inversionSlider?.value ?? 0, 10) / 100; }
 
   get mutationRate() {
     const v = parseInt(this._mutSlider.value, 10);
@@ -71,6 +75,12 @@ export class ControlsPanel {
     this._mutSlider.addEventListener('input', () => {
       const r = this.mutationRate;
       this._mutVal.textContent = r < 0.01 ? (r * 100).toFixed(2) + '%' : (r * 100).toFixed(1) + '%';
+    });
+    this._transpositionSlider?.addEventListener('input', e => {
+      document.getElementById('val-transposition').textContent = e.target.value + '%';
+    });
+    this._inversionSlider?.addEventListener('input', e => {
+      document.getElementById('val-inversion').textContent = e.target.value + '%';
     });
 
     this._btnRun.addEventListener('click', () => {

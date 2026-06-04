@@ -15,8 +15,9 @@ export class TreeNode {
     this.generation = generation;
 
     // Set by SelectionEngine after each generation
-    this.fitness = 1.0;
-    this.alive = true; // false = selected against (shown grey in tree)
+    this.fitness   = 1.0;
+    this.alive     = true;    // false = selected against (shown grey in tree)
+    this.speciesId = null;    // set by SpeciationEngine when species coloring is on
   }
 
   get isRoot() { return this.parent === null; }

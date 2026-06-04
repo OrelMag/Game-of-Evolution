@@ -43,17 +43,29 @@ export class SelectionEngine {
       return nodes;
     }
 
-    // Sort by fitness descending
-    const sorted = [...nodes].sort((a, b) => b.fitness - a.fitness);
+    // Normalise fitness within this cohort so the formula is scale-independent
+    const maxFit = Math.max(...nodes.map(n => n.fitness));
+    const minFit = Math.min(...nodes.map(n => n.fitness));
+    const range  = maxFit - minFit || 1;
 
-    // Survival fraction: at strength=1 only top 30% survive; at strength=0.5 top 65%
-    const survivalRate = 1 - selectionStrength * 0.7;
-    const survivors = Math.max(1, Math.ceil(sorted.length * survivalRate));
-
-    for (let i = 0; i < sorted.length; i++) {
-      sorted[i].alive = i < survivors;
+    // Each node gets an independent Bernoulli trial:
+    //   P(survive) = 1 − strength × (1 − normFit)
+    // strength=0 → all survive (P=1); strength=1 → weakest barely survives
+    const survivors = [];
+    for (const node of nodes) {
+      const normFit = (node.fitness - minFit) / range;
+      const prob    = 1 - selectionStrength * (1 - normFit);
+      node.alive    = Math.random() < prob;
+      if (node.alive) survivors.push(node);
     }
 
-    return sorted.filter(n => n.alive);
+    // Guarantee at least one survivor
+    if (survivors.length === 0) {
+      const best = nodes.reduce((a, b) => a.fitness > b.fitness ? a : b);
+      best.alive = true;
+      survivors.push(best);
+    }
+
+    return survivors;
   }
 }

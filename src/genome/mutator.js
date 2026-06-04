@@ -1,8 +1,10 @@
 import { Genome, ALPHABET, TOTAL_LENGTH, PART_COUNT, PART_LENGTH } from './genome.js';
 
 export class Mutator {
-  constructor({ mutationRate = 0.01 } = {}) {
-    this.mutationRate = mutationRate;
+  constructor({ mutationRate = 0.01, transpositionRate = 0, inversionRate = 0 } = {}) {
+    this.mutationRate      = mutationRate;
+    this.transpositionRate = transpositionRate;
+    this.inversionRate     = inversionRate;
   }
 
   mutate(genome) {
@@ -37,6 +39,14 @@ export class Mutator {
     chars.splice(idxA * PART_LENGTH, PART_LENGTH, ...b);
     chars.splice(idxB * PART_LENGTH, PART_LENGTH, ...a);
     return new Genome(chars.join(''));
+  }
+
+  // Apply mode-based mutation then independently stack transposition/inversion events
+  mutateAll(genome, mode = 'point') {
+    let g = this.mutateWithMode(genome, mode);
+    if (this.transpositionRate > 0 && Math.random() < this.transpositionRate) g = this.swapSegments(g);
+    if (this.inversionRate     > 0 && Math.random() < this.inversionRate)     g = this.invertGene(g);
+    return g;
   }
 
   // mode: 'point' | 'inversion' | 'swap' | 'mixed'

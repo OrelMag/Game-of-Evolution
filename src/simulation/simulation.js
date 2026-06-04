@@ -15,6 +15,8 @@ export class Simulation {
    * @param {number}  [opts.selectionStrength]   0–1
    * @param {boolean} [opts.useCrossover]         enable sexual reproduction
    * @param {string}  [opts.mutationMode]         'point'|'inversion'|'swap'|'mixed'
+   * @param {number}  [opts.transpositionRate]    0–1 per-genome probability of a segment swap
+   * @param {number}  [opts.inversionRate]        0–1 per-genome probability of a part inversion
    * @param {import('./statsCollector.js').StatsCollector} [opts.statsCollector]
    */
   constructor({
@@ -26,11 +28,13 @@ export class Simulation {
     selectionStrength = 0,
     useCrossover      = false,
     mutationMode      = 'point',
+    transpositionRate = 0,
+    inversionRate     = 0,
     statsCollector    = null,
   }) {
     this.generations      = generations;
     this.branchingFactor  = branchingFactor;
-    this.mutator          = new Mutator({ mutationRate });
+    this.mutator          = new Mutator({ mutationRate, transpositionRate, inversionRate });
     this.selectionEngine  = selectionEngine;
     this.selectionStrength = selectionStrength;
     this.useCrossover     = useCrossover;
@@ -44,12 +48,12 @@ export class Simulation {
   _makeChildGenome(parent, frontier) {
     if (this.useCrossover && frontier.length >= 2) {
       const mate = _randomMate(frontier, parent);
-      if (mate) return this.mutator.mutateWithMode(
+      if (mate) return this.mutator.mutateAll(
         this.mutator.crossover(parent.genome, mate.genome),
         this.mutationMode
       );
     }
-    return this.mutator.mutateWithMode(parent.genome, this.mutationMode);
+    return this.mutator.mutateAll(parent.genome, this.mutationMode);
   }
 
   /** Run all generations synchronously. Returns root TreeNode. */
@@ -165,5 +169,16 @@ export class Simulation {
 function _randomMate(frontier, exclude) {
   const candidates = frontier.filter(n => n !== exclude);
   if (candidates.length === 0) return null;
-  return candidates[Math.floor(Math.random() * candidates.length)];
+
+  // Roulette-wheel selection weighted by fitness
+  const totalFit = candidates.reduce((s, n) => s + n.fitness, 0);
+  if (totalFit === 0) {
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  }
+  let r = Math.random() * totalFit;
+  for (const c of candidates) {
+    r -= c.fitness;
+    if (r <= 0) return c;
+  }
+  return candidates[candidates.length - 1];
 }

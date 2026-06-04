@@ -65,9 +65,26 @@
             </select>
           </label>
 
+          <label class="control-row">
+            <span class="label-text">Transposition rate</span>
+            <input type="range" id="ctrl-transposition" min="0" max="100" value="0" />
+            <span class="value-display" id="val-transposition">0%</span>
+          </label>
+
+          <label class="control-row">
+            <span class="label-text">Inversion rate</span>
+            <input type="range" id="ctrl-inversion" min="0" max="100" value="0" />
+            <span class="value-display" id="val-inversion">0%</span>
+          </label>
+
           <label class="control-row crossover-row">
             <input type="checkbox" id="ctrl-crossover" />
             <span class="label-text">Sexual reproduction</span>
+          </label>
+
+          <label class="control-row crossover-row">
+            <input type="checkbox" id="ctrl-speciation" />
+            <span class="label-text">Species colouring</span>
           </label>
 
           <div id="scrubber-row" class="control-row hidden">

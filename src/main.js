@@ -2,6 +2,7 @@ import { Genome } from './genome/genome.js';
 import { Simulation } from './simulation/simulation.js';
 import { TreeNode } from './simulation/treeNode.js';
 import { StatsCollector } from './simulation/statsCollector.js';
+import { SpeciationEngine } from './simulation/speciationEngine.js';
 import { ControlsPanel } from './ui/controls.js';
 import { SelectionPanel } from './ui/selectionPanel.js';
 import { TreeView } from './ui/treeView.js';
@@ -89,6 +90,7 @@ const driftView     = new DriftView('drift-canvas');
 const votingOverlay = new VotingOverlay();
 
 let _maxGen = 0;
+const _speciationEngine = new SpeciationEngine();
 
 // ── Playback ──────────────────────────────────────────────────────────────
 
@@ -123,10 +125,15 @@ function startPlayback({ generations, branchingFactor, mutationRate }) {
     selectionStrength: _currentStrength,
     useCrossover:      controls.useCrossover,
     mutationMode:      controls.mutationMode,
+    transpositionRate: controls.transpositionRate,
+    inversionRate:     controls.inversionRate,
   });
 
   currentRoot  = sim.root;
   predatorRoot = predatorMode?.predatorRoot ?? null;
+
+  _speciationEngine.reset();
+  preyTreeView.showSpeciesColors = document.getElementById('ctrl-speciation')?.checked ?? false;
 
   preyTreeView.render(sim.root);
 
@@ -171,6 +178,7 @@ function _runStep() {
 
   // Show new nodes (all alive initially — selection result shown after a brief delay)
   preyTreeView.addGeneration(currentRoot, newNodes);
+  if (preyTreeView.showSpeciesColors) _speciationEngine.assignSpecies(newNodes);
   _statsCollector.record(generation, newNodes);
   statsView.update(_statsCollector.generations);
   driftView.updateLatest(_statsCollector);
