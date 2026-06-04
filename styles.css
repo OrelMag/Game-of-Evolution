@@ -244,7 +244,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .tree-node-group { cursor: pointer; }
 .tree-node-group:hover .node-ring { stroke: var(--accent); }
 
-.node-ring { stroke-width: 2.5; fill: var(--bg); transition: stroke 0.2s; }
+.node-ring { stroke-width: 2.5; fill: none; transition: stroke 0.2s; }
 .node-ring.alive { stroke: var(--border); }
 .node-ring.dead { stroke: #252840; opacity: 0.5; }
 .node-ring.selected { stroke: var(--accent); stroke-width: 3.5; }
