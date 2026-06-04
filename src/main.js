@@ -14,6 +14,9 @@ let currentRoot  = null;
 let selectedNode = null;
 let predatorRoot = null;
 let awaitingTarget = false;
+let compareMode  = false;
+let compareNodeA = null;
+let compareNodeB = null;
 
 // Playback state
 let _playbackGen        = null;
@@ -68,7 +71,9 @@ const creaturePanel = new CreaturePanel({
     preyTreeView.selectNode(node.id);
     selectionPanel.updateHammingFor(node.genome);
   },
-  onSetTarget: genome => selectionPanel.setTargetFromGenome(genome),
+  onSetTarget:   genome => selectionPanel.setTargetFromGenome(genome),
+  onCompare:     () => handleEnterCompareMode(),
+  onExitCompare: () => handleExitCompareMode(),
 });
 
 const statsView    = new StatsView('stats-canvas');
@@ -77,6 +82,7 @@ const votingOverlay = new VotingOverlay();
 // ── Playback ──────────────────────────────────────────────────────────────
 
 function startPlayback({ generations, branchingFactor, mutationRate }) {
+  handleExitCompareMode();
   // Cancel any in-progress playback
   clearTimeout(_playbackTimer);
   _playbackTimer    = null;
@@ -264,8 +270,6 @@ function handleRandomize() {
 }
 
 function handleNodeSelect(node) {
-  selectedNode = node;
-
   if (awaitingTarget) {
     awaitingTarget = false;
     document.getElementById('tree-container').style.cursor = '';
@@ -273,9 +277,50 @@ function handleNodeSelect(node) {
     return;
   }
 
+  if (compareMode) {
+    handleShowComparison(compareNodeA, node);
+    return;
+  }
+
+  selectedNode = node;
   creaturePanel.show(node);
   preyTreeView.selectNode(node.id);
   selectionPanel.updateHammingFor(node.genome);
+}
+
+function handleEnterCompareMode() {
+  if (!selectedNode) return;
+  compareMode  = true;
+  compareNodeA = selectedNode;
+  compareNodeB = null;
+  document.getElementById('tree-container').style.cursor = 'crosshair';
+  creaturePanel.showComparePrompt();
+  preyTreeView.markCompareA(compareNodeA.id);
+}
+
+function handleExitCompareMode() {
+  compareMode  = false;
+  compareNodeA = null;
+  compareNodeB = null;
+  document.getElementById('tree-container').style.cursor = '';
+  preyTreeView.clearCompareMarks();
+  document.getElementById('panel-creature').classList.remove('compare-mode');
+  creaturePanel.exitCompare();
+  if (selectedNode) {
+    preyTreeView.selectNode(selectedNode.id);
+    creaturePanel.show(selectedNode);
+    selectionPanel.updateHammingFor(selectedNode.genome);
+  }
+}
+
+function handleShowComparison(nodeA, nodeB) {
+  if (nodeA.id === nodeB.id) return;
+  compareNodeB = nodeB;
+  compareMode  = false;
+  document.getElementById('tree-container').style.cursor = '';
+  preyTreeView.markCompareB(nodeB.id);
+  document.getElementById('panel-creature').classList.add('compare-mode');
+  creaturePanel.showCompare(nodeA, nodeB);
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────

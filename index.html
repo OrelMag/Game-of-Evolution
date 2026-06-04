@@ -29,7 +29,7 @@
 
           <label class="control-row">
             <span class="label-text">Generations</span>
-            <input type="range" id="ctrl-generations" min="1" max="10" value="5" />
+            <input type="range" id="ctrl-generations" min="1" max="20" value="5" />
             <span class="value-display" id="val-generations">5</span>
           </label>
 
@@ -70,12 +70,7 @@
         <div id="tree-row">
           <div id="tree-container">
             <svg id="tree-svg" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <clipPath id="node-clip">
-                  <circle r="28" />
-                </clipPath>
-              </defs>
-              <g id="tree-root-group">
+<g id="tree-root-group">
                 <g id="tree-edges"></g>
                 <g id="tree-nodes"></g>
               </g>
@@ -139,6 +134,49 @@
             <button id="btn-set-target"   class="btn btn-ghost btn-sm">🎯 Set target</button>
             <button id="btn-copy-genome"  class="btn btn-ghost btn-sm">⎘ Copy</button>
             <button id="btn-share"        class="btn btn-ghost btn-sm">🔗 Share</button>
+            <button id="btn-compare"      class="btn btn-ghost btn-sm">⊕ Compare</button>
+          </div>
+        </div>
+        <div id="compare-prompt" class="compare-prompt hidden">
+          Click another creature in the tree to compare.
+        </div>
+        <div id="compare-view" class="hidden">
+          <div class="compare-exit-row">
+            <button id="btn-exit-compare" class="btn btn-ghost btn-sm">✕ Exit Compare</button>
+          </div>
+          <div class="compare-creatures-row">
+            <div class="compare-creature-col">
+              <canvas id="compare-canvas-a" width="140" height="171" class="compare-canvas"></canvas>
+              <div id="compare-name-a" class="creature-name compare-creature-name"></div>
+              <div id="compare-gen-a" class="compare-gen-label"></div>
+            </div>
+            <div class="compare-creature-col">
+              <canvas id="compare-canvas-b" width="140" height="171" class="compare-canvas"></canvas>
+              <div id="compare-name-b" class="creature-name compare-creature-name"></div>
+              <div id="compare-gen-b" class="compare-gen-label"></div>
+            </div>
+          </div>
+          <div class="compare-stats-grid">
+            <div class="compare-stat">
+              <span class="compare-stat-label">Hamming distance</span>
+              <span id="compare-hamming" class="compare-stat-value"></span>
+            </div>
+            <div class="compare-stat">
+              <span class="compare-stat-label">Generation gap</span>
+              <span id="compare-gen-gap" class="compare-stat-value"></span>
+            </div>
+            <div class="compare-stat">
+              <span class="compare-stat-label">Fitness A / B</span>
+              <span id="compare-fitness" class="compare-stat-value"></span>
+            </div>
+            <div class="compare-stat compare-stat-full">
+              <span class="compare-stat-label">Relationship</span>
+              <span id="compare-relationship" class="compare-stat-value"></span>
+            </div>
+          </div>
+          <div id="compare-genome-display">
+            <h3>Genome diff</h3>
+            <div id="compare-genome-parts"></div>
           </div>
         </div>
       </aside>

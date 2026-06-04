@@ -2,7 +2,7 @@ import { Mutator } from '../genome/mutator.js';
 import { Genome } from '../genome/genome.js';
 import { TreeNode } from './treeNode.js';
 
-export const MAX_NODES = 512;
+export const MAX_NODES = 1024;
 
 export class Simulation {
   /**

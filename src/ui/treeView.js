@@ -13,8 +13,10 @@ export class TreeView {
     this.onSelect   = onSelect;
 
     this._renderer   = new CreatureRenderer();
-    this._transform  = { x: 60, y: 40, scale: 1 };
+    this._transform  = { x: 0, y: 0, scale: 1 };
     this._selectedId = null;
+    this._compareAId = null;
+    this._compareBId = null;
     this._positions  = new Map();
 
     this._bindPanZoom();
@@ -34,6 +36,7 @@ export class TreeView {
     });
 
     this._applyTransform();
+    this.fitView();
     document.getElementById('tree-empty-msg')?.classList.add('hidden');
   }
 
@@ -77,12 +80,45 @@ export class TreeView {
       if (existing) existing.remove();
       this._drawNode(node);
     }
+    this._reapplyCompareMarks();
+  }
+
+  _reapplyCompareMarks() {
+    if (this._compareAId !== null) {
+      const ring = this.svg.querySelector(`[data-id="${this._compareAId}"] .node-ring`);
+      if (ring) ring.classList.add('compare-a');
+    }
+    if (this._compareBId !== null) {
+      const ring = this.svg.querySelector(`[data-id="${this._compareBId}"] .node-ring`);
+      if (ring) ring.classList.add('compare-b');
+    }
   }
 
   clear() {
     this.nodesGroup.innerHTML = '';
     this.edgesGroup.innerHTML = '';
     document.getElementById('tree-empty-msg')?.classList.remove('hidden');
+  }
+
+  fitView() {
+    if (this._positions.size === 0) return;
+    const rect = this.svg.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+
+    const PADDING = 40;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const { x, y } of this._positions.values()) {
+      if (x < minX) minX = x;  if (x > maxX) maxX = x;
+      if (y < minY) minY = y;  if (y > maxY) maxY = y;
+    }
+    minX -= NODE_R + PADDING;  maxX += NODE_R + PADDING;
+    minY -= NODE_R + PADDING;  maxY += NODE_R + PADDING;
+
+    const scale = Math.min(1, rect.width / (maxX - minX), rect.height / (maxY - minY));
+    this._transform.scale = scale;
+    this._transform.x = (rect.width  - (maxX - minX) * scale) / 2 - minX * scale;
+    this._transform.y = (rect.height - (maxY - minY) * scale) / 2 - minY * scale;
+    this._applyTransform();
   }
 
   selectNode(id) {
@@ -93,6 +129,31 @@ export class TreeView {
     this._selectedId = id;
     const ring = this.svg.querySelector(`[data-id="${id}"] .node-ring`);
     if (ring) ring.classList.add('selected');
+  }
+
+  markCompareA(id) {
+    const ring = this.svg.querySelector(`[data-id="${id}"] .node-ring`);
+    if (ring) ring.classList.add('compare-a');
+    this._compareAId = id;
+  }
+
+  markCompareB(id) {
+    const ring = this.svg.querySelector(`[data-id="${id}"] .node-ring`);
+    if (ring) ring.classList.add('compare-b');
+    this._compareBId = id;
+  }
+
+  clearCompareMarks() {
+    if (this._compareAId !== null) {
+      const ring = this.svg.querySelector(`[data-id="${this._compareAId}"] .node-ring`);
+      if (ring) ring.classList.remove('compare-a');
+      this._compareAId = null;
+    }
+    if (this._compareBId !== null) {
+      const ring = this.svg.querySelector(`[data-id="${this._compareBId}"] .node-ring`);
+      if (ring) ring.classList.remove('compare-b');
+      this._compareBId = null;
+    }
   }
 
   // ── Private ──────────────────────────────────────────────────────────
@@ -114,7 +175,7 @@ export class TreeView {
     const img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
     img.setAttribute('href', thumb);
     img.setAttribute('x', -(tw / 2));
-    img.setAttribute('y', -(th / 2));
+    img.setAttribute('y', Math.round(-(th / 2)));
     img.setAttribute('width', tw);
     img.setAttribute('height', th);
     img.setAttribute('clip-path', `circle(${NODE_R - 3}px at center)`);
@@ -136,7 +197,7 @@ export class TreeView {
 
     if (node.fitness < 1) {
       const badge = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      badge.setAttribute('y', NODE_R + 11);
+      badge.setAttribute('y', NODE_R - 6);
       badge.setAttribute('text-anchor', 'middle');
       badge.setAttribute('font-size', '9');
       badge.setAttribute('fill', node.fitness > 0.6 ? '#4ade80' : '#fb923c');

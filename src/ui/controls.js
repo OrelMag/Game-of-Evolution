@@ -1,4 +1,4 @@
-import { Simulation } from '../simulation/simulation.js';
+import { Simulation, MAX_NODES } from '../simulation/simulation.js';
 
 export class ControlsPanel {
   constructor({ onRun, onRandomize, onPause, onResume, onStep }) {
@@ -57,8 +57,8 @@ export class ControlsPanel {
 
     this._btnRun.addEventListener('click', () => {
       const est = Simulation.estimateNodeCount(this.generations, this.branchingFactor);
-      if (est > 512) {
-        this._hint.textContent = '⚠ Capped at 512 nodes';
+      if (est > MAX_NODES) {
+        this._hint.textContent = `⚠ Capped at ${MAX_NODES} nodes`;
         this._hint.className   = 'hint warn';
       }
       this.onRun({ generations: this.generations, branchingFactor: this.branchingFactor, mutationRate: this.mutationRate });
@@ -76,8 +76,8 @@ export class ControlsPanel {
 
   _updateHint() {
     const est = Simulation.estimateNodeCount(this.generations, this.branchingFactor);
-    if (est > 512) {
-      this._hint.textContent = `~${est} nodes (capped at 512)`;
+    if (est > MAX_NODES) {
+      this._hint.textContent = `~${est} nodes (capped at ${MAX_NODES})`;
       this._hint.className   = 'hint warn';
     } else {
       this._hint.textContent = `~${est} creatures`;
