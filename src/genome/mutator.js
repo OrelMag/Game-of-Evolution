@@ -1,14 +1,10 @@
-import { Genome, ALPHABET } from './genome.js';
+import { Genome, ALPHABET, TOTAL_LENGTH } from './genome.js';
 
 export class Mutator {
-  /**
-   * @param {number} mutationRate  probability per character per copy (0–1)
-   */
   constructor({ mutationRate = 0.01 } = {}) {
     this.mutationRate = mutationRate;
   }
 
-  /** Returns a new Genome; the original is never modified. */
   mutate(genome) {
     const chars = [...genome.sequence];
     for (let i = 0; i < chars.length; i++) {
@@ -20,7 +16,16 @@ export class Mutator {
     return new Genome(chars.join(''));
   }
 
-  /** Expected number of mutations per copy (informational). */
+  // Single-point crossover: genomeA[:point] + genomeB[point:]
+  crossover(genomeA, genomeB) {
+    const point = 1 + Math.floor(Math.random() * (TOTAL_LENGTH - 1));
+    return new Genome(genomeA.sequence.slice(0, point) + genomeB.sequence.slice(point));
+  }
+
+  crossoverAndMutate(genomeA, genomeB) {
+    return this.mutate(this.crossover(genomeA, genomeB));
+  }
+
   get expectedMutations() {
     return Math.round(this.mutationRate * 120 * 10) / 10;
   }

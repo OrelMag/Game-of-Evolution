@@ -31,6 +31,7 @@ export class SelectionPanel {
           <button class="tab-btn" data-tab="env">Environment</button>
           <button class="tab-btn" data-tab="target">Target</button>
           <button class="tab-btn" data-tab="predator">Predator</button>
+          <button class="tab-btn" data-tab="player">Player</button>
         </div>
 
         <!-- None -->
@@ -68,6 +69,14 @@ export class SelectionPanel {
             <input type="range" id="target-strength" min="0" max="100" value="70" />
             <span class="value-display" id="val-target-strength">70%</span>
           </label>
+        </div>
+
+        <!-- Player -->
+        <div class="tab-content" data-content="player">
+          <p style="font-size:11px;color:var(--text-dim);">
+            After each generation you choose which creatures survive.<br>
+            Click a creature card to keep or cull it, then confirm.
+          </p>
         </div>
 
         <!-- Predator -->
@@ -186,6 +195,11 @@ export class SelectionPanel {
   buildEngine(branchingFactor, mutationRate) {
     const modes = [];
     let predatorMode = null;
+
+    if (this._activeTab === 'player') {
+      // Artificial selection — no automatic engine needed
+      return { engine: new SelectionEngine([]), predatorMode: null };
+    }
 
     if (this._activeTab === 'env') {
       const strength = parseInt(document.getElementById('env-strength').value, 10) / 100;

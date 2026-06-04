@@ -1,22 +1,10 @@
 import { CreatureRenderer } from '../creature/renderer.js';
 
-const NODE_R   = 28;  // circle radius for normal nodes
-const GEN_GAP  = 130; // horizontal pixels between generations
-const NODE_GAP = 72;  // minimum vertical pixels between nodes
+const NODE_R   = 28;   // circle radius
+const GEN_GAP  = 130;  // horizontal px between generations
+const NODE_GAP = 72;   // minimum vertical px between nodes
 
-/**
- * SVG-based evolutionary tree with zoom/pan.
- * Draws nodes as creature thumbnails inside circles.
- * Dead (selected-against) nodes are overlaid with a grey mask.
- */
 export class TreeView {
-  /**
-   * @param {string} svgId          ID of the <svg> element
-   * @param {string} nodesGroupId   ID of the <g> for node elements
-   * @param {string} edgesGroupId   ID of the <g> for edge elements
-   * @param {boolean} isPredator    style flag for predator tree
-   * @param {function} onSelect     called with (TreeNode) on click
-   */
   constructor({ svgId, nodesGroupId, edgesGroupId, isPredator = false, onSelect }) {
     this.svg        = document.getElementById(svgId);
     this.nodesGroup = document.getElementById(nodesGroupId);
@@ -24,9 +12,10 @@ export class TreeView {
     this.isPredator = isPredator;
     this.onSelect   = onSelect;
 
-    this._renderer  = new CreatureRenderer();
-    this._transform = { x: 60, y: 40, scale: 1 };
+    this._renderer   = new CreatureRenderer();
+    this._transform  = { x: 60, y: 40, scale: 1 };
     this._selectedId = null;
+    this._positions  = new Map();
 
     this._bindPanZoom();
   }
@@ -48,6 +37,48 @@ export class TreeView {
     document.getElementById('tree-empty-msg')?.classList.add('hidden');
   }
 
+  /**
+   * Incrementally add a new generation to the already-rendered tree.
+   * Re-layouts the full tree (positions may shift as the tree grows),
+   * updates existing node positions, redraws all edges, and appends
+   * new nodes with a fade-in animation.
+   */
+  addGeneration(root, newNodes) {
+    const newPositions = new Map();
+    _layoutTree(root, newPositions);
+
+    // Move existing nodes to updated positions
+    for (const [nodeId, pos] of newPositions) {
+      const g = this.svg.querySelector(`[data-id="${nodeId}"]`);
+      if (g) g.setAttribute('transform', `translate(${pos.x},${pos.y})`);
+    }
+
+    this._positions = newPositions;
+
+    // Redraw all edges (parent positions may have shifted)
+    this.edgesGroup.innerHTML = '';
+    root.walkBFS(node => { if (node.parent) this._drawEdge(node); });
+
+    // Append new nodes with enter animation
+    for (const node of newNodes) {
+      const g = this._drawNode(node);
+      if (g) g.classList.add('node-entering');
+    }
+
+    document.getElementById('tree-empty-msg')?.classList.add('hidden');
+  }
+
+  /**
+   * Redraw specific nodes in-place (used after alive/dead status changes).
+   */
+  refreshNodes(nodes) {
+    for (const node of nodes) {
+      const existing = this.svg.querySelector(`[data-id="${node.id}"]`);
+      if (existing) existing.remove();
+      this._drawNode(node);
+    }
+  }
+
   clear() {
     this.nodesGroup.innerHTML = '';
     this.edgesGroup.innerHTML = '';
@@ -66,9 +97,10 @@ export class TreeView {
 
   // ── Private ──────────────────────────────────────────────────────────
 
+  /** Draws and appends a node group. Returns the group element. */
   _drawNode(node) {
     const pos = this._positions.get(node.id);
-    if (!pos) return;
+    if (!pos) return null;
     const { x, y } = pos;
 
     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -76,7 +108,6 @@ export class TreeView {
     g.setAttribute('data-id', node.id);
     g.setAttribute('transform', `translate(${x},${y})`);
 
-    // Thumbnail — natural aspect ratio, centered on node
     const tw = NODE_R * 2 - 4;
     const th = Math.round(tw * 390 / 320);
     const thumb = this._renderer.thumbnail(node.genome, tw);
@@ -89,7 +120,6 @@ export class TreeView {
     img.setAttribute('clip-path', `circle(${NODE_R - 3}px at center)`);
     g.appendChild(img);
 
-    // Ring
     const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
     circle.setAttribute('r', NODE_R);
     circle.setAttribute('class',
@@ -97,7 +127,6 @@ export class TreeView {
     );
     g.appendChild(circle);
 
-    // Dead overlay
     if (!node.alive) {
       const overlay = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       overlay.setAttribute('r', NODE_R - 1);
@@ -105,7 +134,6 @@ export class TreeView {
       g.appendChild(overlay);
     }
 
-    // Fitness badge (small arc indicator at bottom of circle)
     if (node.fitness < 1) {
       const badge = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       badge.setAttribute('y', NODE_R + 11);
@@ -116,12 +144,24 @@ export class TreeView {
       g.appendChild(badge);
     }
 
+    // Crossover second-parent indicator (small ✕ badge)
+    if (node.secondParent) {
+      const xmark = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      xmark.setAttribute('x', NODE_R - 8);
+      xmark.setAttribute('y', -(NODE_R - 10));
+      xmark.setAttribute('font-size', '9');
+      xmark.setAttribute('fill', '#a78bfa');
+      xmark.textContent = '✕';
+      g.appendChild(xmark);
+    }
+
     g.addEventListener('click', () => {
       this.selectNode(node.id);
       this.onSelect?.(node);
     });
 
     this.nodesGroup.appendChild(g);
+    return g;
   }
 
   _drawEdge(node) {
@@ -179,16 +219,14 @@ export class TreeView {
   }
 }
 
-// ── Tree layout (Reingold-Tilford simplified) ─────────────────────────────
+// ── Tree layout (simplified Reingold-Tilford) ─────────────────────────────
 
 function _layoutTree(root, posMap) {
-  // Group nodes by generation
   const gens = [];
   root.walkBFS(node => {
     if (!gens[node.generation]) gens[node.generation] = [];
     gens[node.generation].push(node);
   });
-
   for (let g = 0; g < gens.length; g++) {
     const nodes = gens[g];
     const totalH = (nodes.length - 1) * NODE_GAP;

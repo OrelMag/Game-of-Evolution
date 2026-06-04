@@ -10,6 +10,7 @@ export class TreeNode {
     this.id = nextId++;
     this.genome = genome;
     this.parent = parent;
+    this.secondParent = null; // set when crossover is used
     this.children = [];
     this.generation = generation;
 

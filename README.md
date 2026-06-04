@@ -53,6 +53,7 @@ Decoding a part: count G, O, D in its 8 characters → normalise to fractions `g
 | **Environment** | 5 presets (Arctic, Deep Sea, Desert, Forest, Volcanic). Fitness = mean cosine similarity of each part's G/O/D ratios to the environment's preferences |
 | **Target** | Fitness = 1 − Hamming distance / 120 vs a user-chosen target genome |
 | **Predator** | A second co-evolving lineage. Prey fitness = maximum distance from any predator; predator fitness = maximum similarity to nearest prey |
+| **Artificial Selection** | Manual player voting. Each generation, vote for creatures to keep; low-voted creatures are culled |
 
 Multiple modes can be active simultaneously; the final fitness is the product of all active mode scores.
 
@@ -69,9 +70,20 @@ The UI also shows an estimated node count before running and blocks execution if
 ## Interacting with the tree
 
 - **Click a node** to open the creature detail panel (large render, genome breakdown, fitness, generation).
+- **Creature name**: each creature has an auto-generated Latin binomial name based on its hue, body size, and pattern.
 - **↑ Parent**: navigate to the parent node.
 - **Set as target**: when Target mode is active, sets the clicked creature's genome as the fitness target.
+- **Vote**: when Artificial Selection mode is active, click to vote for creatures to survive the next generation.
 - **Pan & zoom**: drag to pan the tree; scroll wheel to zoom.
+
+## Statistics tracking
+
+When any selection mode is active, the simulation tracks per-generation statistics:
+- **Average fitness**: mean fitness of all surviving nodes
+- **Best fitness**: highest fitness in the current generation
+- **Diversity**: average pairwise Hamming distance (normalised 0–1)
+
+Statistics are displayed in the stats panel and reset when you start a new simulation.
 
 ## Architecture
 
@@ -83,6 +95,7 @@ src/
   creature/      trait decoding + Canvas 2D drawing
     traits.js       decodeTraits() — genome → visual properties
     renderer.js     Orchestrates draw order; exposes render() & thumbnail()
+    namer.js        Generates Latin binomial creature names
     parts/
       body.js       Body ellipse, radial gradient, pattern overlay
       head.js       Head, snout, eyes, mouth, cranial crest
@@ -92,16 +105,20 @@ src/
   simulation/    tree data structure + generation runner
     simulation.js   Evolutionary loop, MAX_NODES cap
     treeNode.js     Node with genome, fitness, alive flag, children
+    statsCollector.js Tracks fitness, diversity per generation
   selection/     pluggable fitness modes
     selectionEngine.js   Multiplicative blending of active modes
     environmentMode.js   5 environment presets
     targetMode.js        Hamming-distance target
     predatorMode.js      Co-evolutionary predator/prey
+    artificialMode.js    Manual player voting (marker for UI)
   ui/            DOM components — no business logic
     controls.js       Parameter sliders & run/randomize buttons
     selectionPanel.js Tabbed selection UI
     creaturePanel.js  Creature detail sidebar
     treeView.js       SVG tree with pan/zoom
+    statsView.js      Statistics panel (fitness, diversity trends)
+    votingOverlay.js  Voting UI for artificial selection mode
 main.js          Wires everything; owns app state
 index.html       Entry point & layout
 styles.css       Styling

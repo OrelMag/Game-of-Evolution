@@ -1,28 +1,46 @@
 import { Genome } from './genome/genome.js';
 import { Simulation } from './simulation/simulation.js';
+import { StatsCollector } from './simulation/statsCollector.js';
 import { ControlsPanel } from './ui/controls.js';
 import { SelectionPanel } from './ui/selectionPanel.js';
 import { TreeView } from './ui/treeView.js';
 import { CreaturePanel } from './ui/creaturePanel.js';
+import { StatsView } from './ui/statsView.js';
+import { VotingOverlay } from './ui/votingOverlay.js';
 
 // ── App state ─────────────────────────────────────────────────────────────
-let rootGenome     = Genome.random();
-let currentRoot    = null;  // TreeNode root of the last simulation
-let selectedNode   = null;
-let predatorRoot   = null;  // TreeNode root of predator tree (if any)
-let awaitingTarget = false; // true while waiting for user to click a node to set as target
+let rootGenome   = Genome.random();
+let currentRoot  = null;
+let selectedNode = null;
+let predatorRoot = null;
+let awaitingTarget = false;
+
+// Playback state
+let _playbackGen        = null;
+let _playbackState      = 'idle'; // 'idle'|'playing'|'paused'|'voting'|'done'
+let _playbackTimer      = null;
+let _pendingSurvivors   = undefined;
+let _stepInProgress     = false;
+let _currentSelEngine   = null;
+let _currentStrength    = 0;
+let _artificialMode     = false;
+let _statsCollector     = new StatsCollector();
+
+const SELECTION_DELAY_MS = 280; // wait after showing nodes before marking dead ones
 
 // ── UI components ─────────────────────────────────────────────────────────
 const controls = new ControlsPanel({
-  onRun:       handleRun,
+  onRun:       params => startPlayback(params),
   onRandomize: handleRandomize,
+  onPause:     handlePause,
+  onResume:    handleResume,
+  onStep:      handleStep,
 });
 
 const selectionPanel = new SelectionPanel({
   onTargetPick: () => {
     awaitingTarget = true;
     document.getElementById('tree-container').style.cursor = 'crosshair';
-    // eslint-disable-next-line no-alert
     window.alert('Click any creature in the tree to set it as the target genome.');
   },
 });
@@ -40,7 +58,7 @@ const predTreeView = new TreeView({
   nodesGroupId: 'predator-nodes',
   edgesGroupId: 'predator-edges',
   isPredator:   true,
-  onSelect:     () => {}, // predator nodes not inspectable for now
+  onSelect:     () => {},
 });
 
 const creaturePanel = new CreaturePanel({
@@ -50,43 +68,46 @@ const creaturePanel = new CreaturePanel({
     preyTreeView.selectNode(node.id);
     selectionPanel.updateHammingFor(node.genome);
   },
-  onSetTarget: genome => {
-    selectionPanel.setTargetFromGenome(genome);
-  },
+  onSetTarget: genome => selectionPanel.setTargetFromGenome(genome),
 });
 
-// ── Event handlers ─────────────────────────────────────────────────────────
+const statsView    = new StatsView('stats-canvas');
+const votingOverlay = new VotingOverlay();
 
-function handleRun({ generations, branchingFactor, mutationRate }) {
-  controls.setRunning(true);
+// ── Playback ──────────────────────────────────────────────────────────────
 
-  // Build selection engine from current panel state
+function startPlayback({ generations, branchingFactor, mutationRate }) {
+  // Cancel any in-progress playback
+  clearTimeout(_playbackTimer);
+  _playbackTimer    = null;
+  _stepInProgress   = false;
+  _pendingSurvivors = undefined;
+
   const { engine, predatorMode } = selectionPanel.buildEngine(branchingFactor, mutationRate);
-
-  // Wire predator stepping into the simulation loop if active
   let selEngine = engine;
-  if (predatorMode) {
-    // Wrap engine so stepPredator is called after each generation
-    selEngine = _wrapWithPredator(engine, predatorMode);
-  }
+  if (predatorMode) selEngine = _wrapWithPredator(engine, predatorMode);
+
+  _currentSelEngine  = selEngine.modes?.length > 0 ? selEngine : null;
+  _currentStrength   = _getSelectionStrength(selectionPanel);
+  _artificialMode    = selectionPanel.activeTab === 'player';
+  _statsCollector    = new StatsCollector();
+  statsView.update([]);
 
   const sim = new Simulation({
     generations,
     branchingFactor,
     mutationRate,
     rootGenome,
-    selectionEngine:  selEngine.modes?.length > 0 ? selEngine : null,
-    selectionStrength: _getSelectionStrength(selectionPanel),
+    selectionEngine:   _currentSelEngine,
+    selectionStrength: _currentStrength,
+    useCrossover:      controls.useCrossover,
   });
 
-  // Run (synchronous — capped at 512 nodes so never blocks long)
-  currentRoot = sim.run();
+  currentRoot  = sim.root;
   predatorRoot = predatorMode?.predatorRoot ?? null;
 
-  // Render prey tree
-  preyTreeView.render(currentRoot);
+  preyTreeView.render(sim.root);
 
-  // Render predator tree
   const predContainer = document.getElementById('predator-tree-container');
   if (predatorRoot) {
     predContainer.classList.remove('hidden');
@@ -95,25 +116,150 @@ function handleRun({ generations, branchingFactor, mutationRate }) {
     predContainer.classList.add('hidden');
   }
 
-  // Auto-select root node
-  handleNodeSelect(currentRoot);
-  preyTreeView.selectNode(currentRoot.id);
+  handleNodeSelect(sim.root);
+  preyTreeView.selectNode(sim.root.id);
 
-  controls.setRunning(false);
+  _playbackGen   = sim.runGenerator();
+  _playbackState = 'playing';
+  controls.setPlaybackState('playing');
+
+  _runStep();
 }
+
+function _runStep() {
+  if (_stepInProgress) return;
+  if (!_playbackGen) return;
+  if (_playbackState !== 'playing' && _playbackState !== 'paused') return;
+
+  _stepInProgress = true;
+
+  const { value, done } = _playbackGen.next(_pendingSurvivors);
+  _pendingSurvivors = undefined;
+
+  if (done || !value) {
+    _stepInProgress = false;
+    _playbackState  = 'done';
+    controls.setPlaybackState('done');
+    return;
+  }
+
+  const { generation, newNodes } = value;
+
+  // Show new nodes (all alive initially — selection result shown after a brief delay)
+  preyTreeView.addGeneration(currentRoot, newNodes);
+  _statsCollector.record(generation, newNodes);
+  statsView.update(_statsCollector.generations);
+
+  // Player voting mode — async, does not auto-advance
+  if (_artificialMode) {
+    _playbackState = 'voting';
+    controls.setPlaybackState('voting');
+    votingOverlay.show(newNodes).then(survivors => {
+      const keptIds = new Set(survivors.map(n => n.id));
+      newNodes.forEach(n => { n.alive = keptIds.has(n.id); });
+      preyTreeView.refreshNodes(newNodes);
+      _pendingSurvivors = survivors.filter(n => n.alive);
+      _stepInProgress   = false;
+      _playbackState    = 'paused';
+      controls.setPlaybackState('paused');
+      // User must press Step or Resume to continue
+    });
+    return;
+  }
+
+  // Auto selection — compute survivors then show dead overlay after a short delay
+  let autoSurvivors;
+  if (_currentSelEngine) {
+    autoSurvivors = _currentSelEngine.applySelection(newNodes, _currentStrength);
+  } else {
+    newNodes.forEach(n => { n.alive = true; });
+    autoSurvivors = [...newNodes];
+  }
+  _pendingSurvivors = autoSurvivors;
+
+  setTimeout(() => {
+    preyTreeView.refreshNodes(newNodes);
+    if (predatorRoot) predTreeView.render(predatorRoot);
+
+    _stepInProgress = false;
+
+    if (_playbackState === 'playing') {
+      const delay = Math.max(50, controls.playbackSpeed - SELECTION_DELAY_MS);
+      _playbackTimer = setTimeout(_runStep, delay);
+    }
+    // If paused (user pressed Pause during the delay): stay paused, don't schedule
+  }, SELECTION_DELAY_MS);
+}
+
+function handlePause() {
+  if (_playbackState !== 'playing') return;
+  clearTimeout(_playbackTimer);
+  _playbackTimer = null;
+  _playbackState = 'paused';
+  controls.setPlaybackState('paused');
+}
+
+function handleResume() {
+  if (_playbackState !== 'paused') return;
+  _playbackState = 'playing';
+  controls.setPlaybackState('playing');
+  _runStep();
+}
+
+function handleStep() {
+  if (_playbackState === 'idle' || _playbackState === 'done') {
+    // Start a new simulation but stay paused after each step
+    startPlayback({
+      generations:     controls.generations,
+      branchingFactor: controls.branchingFactor,
+      mutationRate:    controls.mutationRate,
+    });
+    // Will be in 'playing' — immediately go to paused so only 1 step runs
+    _playbackState = 'paused';
+    controls.setPlaybackState('paused');
+    return;
+  }
+  if (_playbackState === 'paused') {
+    clearTimeout(_playbackTimer);
+    _playbackState = 'playing'; // temporarily so _runStep proceeds
+    _runStep();
+    // After _runStep runs (sync part), if it scheduled a timeout, cancel it
+    // and go back to paused. The async part (SELECTION_DELAY_MS) will also
+    // check state before scheduling the next step.
+    clearTimeout(_playbackTimer);
+    _playbackTimer = null;
+    if (_playbackState === 'playing') {
+      _playbackState = 'paused';
+      controls.setPlaybackState('paused');
+    }
+  }
+}
+
+// ── Stats panel toggle ────────────────────────────────────────────────────
+function _toggleStats() {
+  const panel   = document.getElementById('stats-panel');
+  const showBtn = document.getElementById('btn-show-stats');
+  if (!panel) return;
+  // toggle() returns true when the class was ADDED (panel just became hidden)
+  const justHid = panel.classList.toggle('hidden');
+  if (showBtn) showBtn.classList.toggle('hidden', !justHid);
+  if (!justHid) statsView.update(_statsCollector.generations);
+}
+document.getElementById('btn-toggle-stats')?.addEventListener('click', _toggleStats);
+document.getElementById('btn-show-stats')?.addEventListener('click', _toggleStats);
+
+// ── Other handlers ────────────────────────────────────────────────────────
 
 function handleRandomize() {
   rootGenome = Genome.random();
-  // If we already have a simulation, re-run it with the new root
   if (currentRoot) {
-    handleRun({
+    startPlayback({
       generations:     controls.generations,
       branchingFactor: controls.branchingFactor,
       mutationRate:    controls.mutationRate,
     });
   } else {
-    const node = { genome: rootGenome, parent: null, generation: 0, fitness: 1, alive: true, id: -1, children: [] };
-    creaturePanel.show(node);
+    creaturePanel.show({ genome: rootGenome, parent: null, generation: 0, fitness: 1, alive: true, id: -1, children: [] });
   }
 }
 
@@ -142,11 +288,6 @@ function _getSelectionStrength(panel) {
   return 0;
 }
 
-/**
- * Wraps a SelectionEngine so the predator advances each generation.
- * Achieved by overriding computeFitness to also step the predator
- * the first time a new generation is seen.
- */
 function _wrapWithPredator(engine, predatorMode) {
   let lastGen = -1;
   let lastPreyFrontier = [];
@@ -155,7 +296,6 @@ function _wrapWithPredator(engine, predatorMode) {
     modes: engine.modes,
     computeFitness(node, allNodes, generation) {
       if (generation !== lastGen) {
-        // Advance predator for this new generation using previous prey frontier
         predatorMode.stepPredator(generation, lastPreyFrontier);
         lastGen = generation;
         lastPreyFrontier = [];
@@ -169,8 +309,12 @@ function _wrapWithPredator(engine, predatorMode) {
   };
 }
 
-// ── Initial state: show ancestor creature on load ─────────────────────────
+// ── URL hash: restore a shared creature on load ───────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
+  const hash = window.location.hash;
+  if (hash.startsWith('#g=')) {
+    try { rootGenome = Genome.fromString(hash.slice(3)); } catch (_) {}
+  }
   const node = { genome: rootGenome, parent: null, generation: 0, fitness: 1, alive: true, id: -1, children: [] };
   creaturePanel.show(node);
 });

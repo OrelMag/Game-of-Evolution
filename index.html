@@ -14,8 +14,10 @@
       </div>
       <div class="header-right">
         <span id="node-count-hint" class="hint"></span>
+        <button id="btn-step"      class="btn btn-ghost btn-sm">⏭ Step</button>
+        <button id="btn-pause"     class="btn btn-secondary" disabled>⏸ Pause</button>
         <button id="btn-randomize" class="btn btn-secondary">↺ Randomize</button>
-        <button id="btn-run" class="btn btn-primary">▶ Run</button>
+        <button id="btn-run"       class="btn btn-primary">▶ Run</button>
       </div>
     </header>
 
@@ -42,40 +44,67 @@
             <input type="range" id="ctrl-mutation" min="1" max="100" value="51" />
             <span class="value-display" id="val-mutation">1.0%</span>
           </label>
+
+          <label class="control-row">
+            <span class="label-text">Playback speed</span>
+            <select id="ctrl-speed" class="speed-select">
+              <option value="1200">Slow</option>
+              <option value="600" selected>Normal</option>
+              <option value="250">Fast</option>
+              <option value="80">Instant</option>
+            </select>
+          </label>
+
+          <label class="control-row crossover-row">
+            <input type="checkbox" id="ctrl-crossover" />
+            <span class="label-text">Sexual reproduction</span>
+          </label>
         </section>
 
         <!-- Selection panel injected here by selectionPanel.js -->
         <div id="selection-panel-mount"></div>
       </aside>
 
-      <!-- Center panel: evolutionary tree -->
+      <!-- Center panel: evolutionary tree + stats -->
       <section id="panel-tree">
-        <div id="tree-container">
-          <svg id="tree-svg" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <clipPath id="node-clip">
-                <circle r="28" />
-              </clipPath>
-            </defs>
-            <g id="tree-root-group">
-              <g id="tree-edges"></g>
-              <g id="tree-nodes"></g>
-            </g>
-          </svg>
-          <div id="tree-empty-msg">
-            <p>Configure parameters and click <strong>▶ Run</strong> to begin.</p>
+        <div id="tree-row">
+          <div id="tree-container">
+            <svg id="tree-svg" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <clipPath id="node-clip">
+                  <circle r="28" />
+                </clipPath>
+              </defs>
+              <g id="tree-root-group">
+                <g id="tree-edges"></g>
+                <g id="tree-nodes"></g>
+              </g>
+            </svg>
+            <div id="tree-empty-msg">
+              <p>Configure parameters and click <strong>▶ Run</strong> to begin.</p>
+            </div>
+          </div>
+          <!-- Predator tree (shown when predator mode active) -->
+          <div id="predator-tree-container" class="hidden">
+            <div class="tree-label predator-label">Predator lineage</div>
+            <svg id="predator-tree-svg" xmlns="http://www.w3.org/2000/svg">
+              <g id="predator-root-group">
+                <g id="predator-edges"></g>
+                <g id="predator-nodes"></g>
+              </g>
+            </svg>
           </div>
         </div>
-        <!-- Predator tree (shown when predator mode active) -->
-        <div id="predator-tree-container" class="hidden">
-          <div class="tree-label predator-label">Predator lineage</div>
-          <svg id="predator-tree-svg" xmlns="http://www.w3.org/2000/svg">
-            <g id="predator-root-group">
-              <g id="predator-edges"></g>
-              <g id="predator-nodes"></g>
-            </g>
-          </svg>
+
+        <!-- Stats panel (collapsible) -->
+        <div id="stats-panel" class="hidden">
+          <div id="stats-header">
+            <span>Statistics — fitness &amp; diversity over generations</span>
+            <button id="btn-toggle-stats" class="btn btn-ghost btn-sm" style="margin-left:auto;">Hide</button>
+          </div>
+          <canvas id="stats-canvas"></canvas>
         </div>
+        <button id="btn-show-stats" class="btn btn-ghost btn-sm stats-show-btn">📊 Stats</button>
       </section>
 
       <!-- Right panel: creature detail -->
@@ -85,6 +114,7 @@
         </div>
         <div id="creature-detail" class="hidden">
           <canvas id="creature-canvas" width="320" height="390"></canvas>
+          <div id="creature-name" class="creature-name"></div>
           <div id="creature-meta">
             <div class="meta-row">
               <span class="meta-label">Generation</span>
@@ -105,12 +135,28 @@
             <div id="genome-parts"></div>
           </div>
           <div id="creature-nav">
-            <button id="btn-goto-parent" class="btn btn-secondary btn-sm">↑ Parent</button>
-            <button id="btn-set-target" class="btn btn-ghost btn-sm">🎯 Set as target</button>
+            <button id="btn-goto-parent"  class="btn btn-secondary btn-sm">↑ Parent</button>
+            <button id="btn-set-target"   class="btn btn-ghost btn-sm">🎯 Set target</button>
+            <button id="btn-copy-genome"  class="btn btn-ghost btn-sm">⎘ Copy</button>
+            <button id="btn-share"        class="btn btn-ghost btn-sm">🔗 Share</button>
           </div>
         </div>
       </aside>
     </main>
+  </div>
+
+  <!-- Voting overlay for player selection mode -->
+  <div id="voting-overlay" class="hidden">
+    <div id="voting-modal">
+      <div id="voting-header">
+        <span id="voting-gen-label">Select survivors</span>
+        <p class="voting-hint">Click a card to keep (green) or cull (grey). At least one must survive.</p>
+      </div>
+      <div id="voting-grid"></div>
+      <div id="voting-footer">
+        <button id="voting-confirm" class="btn btn-primary">✓ Confirm selection</button>
+      </div>
+    </div>
   </div>
 
   <script type="module" src="src/main.js"></script>
