@@ -312,7 +312,6 @@ export class SelectionPanel {
       const mv = parseInt(document.getElementById('pred-mutation').value, 10);
       const predRate = Math.round(0.001 * Math.pow(100, (mv - 1) / 99) * 1000) / 1000;
       predatorMode = new PredatorMode({ mutationRate: predRate, branchingFactor });
-      predatorMode.init();
       const strength = parseInt(document.getElementById('pred-strength').value, 10) / 100;
       modes.push({ mode: predatorMode, strength });
     }

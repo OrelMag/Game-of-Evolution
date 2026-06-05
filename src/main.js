@@ -102,11 +102,27 @@ const statsView     = new StatsView('stats-canvas');
 const driftView     = new DriftView('drift-canvas');
 const votingOverlay = new VotingOverlay();
 
-let _traceState = 'idle'; // 'idle'|'running'|'done'
+let _traceState        = 'idle'; // 'idle'|'running'|'done'
+let _inTraceTab        = false;
+let _traceSelectedSnap = null;
+let _traceCompareMode  = false;
+let _traceCompareSnapA = null;
 
 const lineageView = new LineageView({
   containerId: 'trace-view-mount',
-  onSelect: snapshot => creaturePanel.show(snapshot),
+  onSelect: snap => {
+    if (_traceCompareMode) {
+      if (snap.id !== _traceCompareSnapA.id) {
+        _traceCompareMode = false;
+        lineageView.exitCompareMode();
+        document.getElementById('panel-creature').classList.add('compare-mode');
+        creaturePanel.showCompare(_traceCompareSnapA, snap);
+      }
+    } else {
+      _traceSelectedSnap = snap;
+      creaturePanel.show(snap);
+    }
+  },
   onComplete: () => {
     _traceState = 'done';
     document.getElementById('btn-run-trace').disabled  = false;
@@ -156,6 +172,10 @@ function startPlayback({ generations, branchingFactor, mutationRate }) {
     proportionalReproduction: controls.proportionalReproduction,
     effectivePopSize:         _currentEffPopSize,
   });
+
+  // init() must run after new Simulation() so the ID counter is reset first,
+  // ensuring predator root gets a unique ID that doesn't collide with prey root (id=0).
+  predatorMode?.init();
 
   currentRoot  = sim.root;
   predatorRoot = predatorMode?.predatorRoot ?? null;
@@ -373,6 +393,14 @@ function handleNodeSelect(node) {
 }
 
 function handleEnterCompareMode() {
+  if (_inTraceTab) {
+    if (!_traceSelectedSnap) return;
+    _traceCompareMode  = true;
+    _traceCompareSnapA = _traceSelectedSnap;
+    creaturePanel.showComparePrompt();
+    lineageView.enterCompareMode(_traceSelectedSnap);
+    return;
+  }
   if (!selectedNode) return;
   compareMode  = true;
   compareNodeA = selectedNode;
@@ -383,6 +411,15 @@ function handleEnterCompareMode() {
 }
 
 function handleExitCompareMode() {
+  if (_traceCompareMode || (_inTraceTab && !compareMode)) {
+    _traceCompareMode  = false;
+    _traceCompareSnapA = null;
+    lineageView.exitCompareMode();
+    document.getElementById('panel-creature').classList.remove('compare-mode');
+    creaturePanel.exitCompare();
+    if (_traceSelectedSnap) creaturePanel.show(_traceSelectedSnap);
+    return;
+  }
   compareMode  = false;
   compareNodeA = null;
   compareNodeB = null;
@@ -432,6 +469,13 @@ function _wrapWithPredator(engine, predatorMode) {
 
 // ── Mode tabs (Tree / Trace) ──────────────────────────────────────────────
 document.getElementById('tab-tree')?.addEventListener('click', () => {
+  _inTraceTab = false;
+  if (_traceCompareMode) {
+    _traceCompareMode = false; _traceCompareSnapA = null;
+    lineageView.exitCompareMode();
+    creaturePanel.exitCompare();
+    document.getElementById('panel-creature').classList.remove('compare-mode');
+  }
   document.getElementById('tree-row').classList.remove('hidden');
   document.getElementById('trace-panel').classList.add('hidden');
   document.getElementById('tab-tree').classList.add('active');
@@ -439,6 +483,7 @@ document.getElementById('tab-tree')?.addEventListener('click', () => {
 });
 
 document.getElementById('tab-trace')?.addEventListener('click', () => {
+  _inTraceTab = true;
   document.getElementById('tree-row').classList.add('hidden');
   document.getElementById('trace-panel').classList.remove('hidden');
   document.getElementById('tab-tree').classList.remove('active');

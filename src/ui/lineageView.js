@@ -12,6 +12,8 @@ export class LineageView {
     this._rafId         = null;
     this._renderedCount = 0;
     this._selectedId    = null;
+    this._compareMode   = false;
+    this._compareSnap   = null;
 
     const container = document.getElementById(containerId);
     container.innerHTML = '';
@@ -48,6 +50,19 @@ export class LineageView {
     this._status.textContent = 'Running…';
 
     this._rafId = requestAnimationFrame(() => this._tick());
+  }
+
+  enterCompareMode(snap) {
+    this._compareMode = true;
+    this._compareSnap = snap;
+    this._filmstrip.querySelector(`[data-id="${snap.id}"]`)?.classList.add('compare-a');
+  }
+
+  exitCompareMode() {
+    this._filmstrip.querySelectorAll('.trace-thumb.compare-a')
+      .forEach(c => c.classList.remove('compare-a'));
+    this._compareMode = false;
+    this._compareSnap = null;
   }
 
   stopTrace() {

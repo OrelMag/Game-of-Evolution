@@ -556,8 +556,9 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   border: 2px solid transparent; padding: 4px;
   background: var(--bg-panel2); transition: border-color 0.12s;
 }
-.trace-thumb:hover  { border-color: var(--accent); }
+.trace-thumb:hover    { border-color: var(--accent); }
 .trace-thumb.selected { border-color: var(--accent); }
+.trace-thumb.compare-a { border-color: var(--orange); }
 .trace-thumb img    { border-radius: 3px; display: block; }
 .trace-thumb-label  { font-size: 9px; color: var(--text-dim); white-space: nowrap; }
 .trace-thumb-fitness{ font-size: 9px; color: var(--green); }

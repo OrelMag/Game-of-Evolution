@@ -25,9 +25,8 @@ export class PredatorMode {
     this._predGeneration = [];  // predGeneration[g] = array of TreeNodes at gen g
   }
 
-  /** Called before the prey simulation starts. */
+  /** Called after new Simulation() so the prey root already holds id=0. */
   init() {
-    TreeNode.resetIdCounter(); // intentionally NOT called here to avoid clashing IDs
     this.predatorRoot  = new TreeNode(Genome.random(), null, 0);
     this._predFrontier = [this.predatorRoot];
     this._predGeneration = [[this.predatorRoot]];
