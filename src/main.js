@@ -11,6 +11,7 @@ import { StatsView } from './ui/statsView.js';
 import { VotingOverlay } from './ui/votingOverlay.js';
 import { DriftView } from './ui/driftView.js';
 import { LineageView } from './ui/lineageView.js';
+import { HabitatBackground } from './ui/habitatBackground.js';
 
 // Fisher-Yates random subsampling (mirrors the helper in selectionEngine.js)
 function _wfSample(arr, n) {
@@ -61,11 +62,17 @@ const controls = new ControlsPanel({
   },
 });
 
+const habitatBg = new HabitatBackground(document.getElementById('tree-container'));
+
 const selectionPanel = new SelectionPanel({
   onTargetPick: () => {
     awaitingTarget = true;
     document.getElementById('tree-container').style.cursor = 'crosshair';
     window.alert('Click any creature in the tree to set it as the target genome.');
+  },
+  onEnvironmentChange: (envKey, isActive) => {
+    habitatBg.setEnvironment(envKey);
+    habitatBg.setActive(isActive);
   },
 });
 

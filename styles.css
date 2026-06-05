@@ -562,3 +562,16 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .trace-thumb img    { border-radius: 3px; display: block; }
 .trace-thumb-label  { font-size: 9px; color: var(--text-dim); white-space: nowrap; }
 .trace-thumb-fitness{ font-size: 9px; color: var(--green); }
+
+/* ── Habitat background canvas ───────────────────────────────────────────── */
+#habitat-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+#tree-svg       { position: relative; z-index: 1; }
+#tree-empty-msg { z-index: 2; }

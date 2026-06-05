@@ -12,8 +12,9 @@ import { Genome } from '../genome/genome.js';
  * Exposes buildEngine() which returns a configured SelectionEngine.
  */
 export class SelectionPanel {
-  constructor({ onTargetPick }) {
-    this.onTargetPick  = onTargetPick;
+  constructor({ onTargetPick, onEnvironmentChange }) {
+    this.onTargetPick        = onTargetPick;
+    this.onEnvironmentChange = onEnvironmentChange;
     this._enabledModes  = new Set();
     this._targetMode    = new TargetMode();
     this._envMode       = new EnvironmentMode('deepSea');
@@ -195,9 +196,18 @@ export class SelectionPanel {
       });
     }
 
+    // Environment checkbox → notify habitat background
+    document.getElementById('chk-env')?.addEventListener('change', e => {
+      const key = document.getElementById('env-select').value;
+      this.onEnvironmentChange?.(key, e.target.checked);
+    });
+
     // Environment select
     document.getElementById('env-select')?.addEventListener('change', e => {
       this._envMode.setEnvironment(e.target.value);
+      if (document.getElementById('chk-env')?.checked) {
+        this.onEnvironmentChange?.(e.target.value, true);
+      }
     });
     document.getElementById('env-strength')?.addEventListener('input', e => {
       document.getElementById('val-env-strength').textContent = e.target.value + '%';
