@@ -10,6 +10,18 @@ import { CreaturePanel } from './ui/creaturePanel.js';
 import { StatsView } from './ui/statsView.js';
 import { VotingOverlay } from './ui/votingOverlay.js';
 import { DriftView } from './ui/driftView.js';
+import { LineageView } from './ui/lineageView.js';
+
+// Fisher-Yates random subsampling (mirrors the helper in selectionEngine.js)
+function _wfSample(arr, n) {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  copy.slice(n).forEach(node => { node.alive = false; });
+  return copy.slice(0, n);
+}
 
 // ── App state ─────────────────────────────────────────────────────────────
 let rootGenome   = Genome.random();
@@ -29,6 +41,7 @@ let _pendingSurvivors   = undefined;
 let _stepInProgress     = false;
 let _currentSelEngine   = null;
 let _currentStrength    = 0;
+let _currentEffPopSize  = Infinity;
 let _artificialMode     = false;
 let _statsCollector     = new StatsCollector();
 
@@ -89,6 +102,18 @@ const statsView     = new StatsView('stats-canvas');
 const driftView     = new DriftView('drift-canvas');
 const votingOverlay = new VotingOverlay();
 
+let _traceState = 'idle'; // 'idle'|'running'|'done'
+
+const lineageView = new LineageView({
+  containerId: 'trace-view-mount',
+  onSelect: snapshot => creaturePanel.show(snapshot),
+  onComplete: () => {
+    _traceState = 'done';
+    document.getElementById('btn-run-trace').disabled  = false;
+    document.getElementById('btn-stop-trace').disabled = true;
+  },
+});
+
 let _maxGen = 0;
 const _speciationEngine = new SpeciationEngine();
 
@@ -112,6 +137,7 @@ function startPlayback({ generations, branchingFactor, mutationRate }) {
 
   _currentSelEngine  = selEngine.modes?.length > 0 ? selEngine : null;
   _currentStrength   = selectionPanel.selectionStrength;
+  _currentEffPopSize = selectionPanel.effectivePopSize;
   _artificialMode    = selectionPanel.isPlayerMode;
   _statsCollector    = new StatsCollector();
   statsView.update([]);
@@ -121,12 +147,14 @@ function startPlayback({ generations, branchingFactor, mutationRate }) {
     branchingFactor,
     mutationRate,
     rootGenome,
-    selectionEngine:   _currentSelEngine,
-    selectionStrength: _currentStrength,
-    useCrossover:      controls.useCrossover,
-    mutationMode:      controls.mutationMode,
-    transpositionRate: controls.transpositionRate,
-    inversionRate:     controls.inversionRate,
+    selectionEngine:          _currentSelEngine,
+    selectionStrength:        _currentStrength,
+    useCrossover:             controls.useCrossover,
+    mutationMode:             controls.mutationMode,
+    transpositionRate:        controls.transpositionRate,
+    inversionRate:            controls.inversionRate,
+    proportionalReproduction: controls.proportionalReproduction,
+    effectivePopSize:         _currentEffPopSize,
   });
 
   currentRoot  = sim.root;
@@ -203,7 +231,11 @@ function _runStep() {
   // Auto selection — compute survivors then show dead overlay after a short delay
   let autoSurvivors;
   if (_currentSelEngine) {
-    autoSurvivors = _currentSelEngine.applySelection(newNodes, _currentStrength);
+    autoSurvivors = _currentSelEngine.applySelection(newNodes, _currentStrength, _currentEffPopSize);
+  } else if (isFinite(_currentEffPopSize) && newNodes.length > _currentEffPopSize) {
+    // Pure drift: no selection engine but effective pop size is capped
+    newNodes.forEach(n => { n.alive = true; });
+    autoSurvivors = _wfSample(newNodes, _currentEffPopSize);
   } else {
     newNodes.forEach(n => { n.alive = true; });
     autoSurvivors = [...newNodes];
@@ -397,6 +429,51 @@ function _wrapWithPredator(engine, predatorMode) {
     },
   };
 }
+
+// ── Mode tabs (Tree / Trace) ──────────────────────────────────────────────
+document.getElementById('tab-tree')?.addEventListener('click', () => {
+  document.getElementById('tree-row').classList.remove('hidden');
+  document.getElementById('trace-panel').classList.add('hidden');
+  document.getElementById('tab-tree').classList.add('active');
+  document.getElementById('tab-trace').classList.remove('active');
+});
+
+document.getElementById('tab-trace')?.addEventListener('click', () => {
+  document.getElementById('tree-row').classList.add('hidden');
+  document.getElementById('trace-panel').classList.remove('hidden');
+  document.getElementById('tab-tree').classList.remove('active');
+  document.getElementById('tab-trace').classList.add('active');
+});
+
+// ── Lineage trace controls ────────────────────────────────────────────────
+document.getElementById('btn-run-trace')?.addEventListener('click', () => {
+  if (_traceState === 'running') return;
+  const generations   = Math.max(1, parseInt(document.getElementById('trace-generations').value, 10) || 1000);
+  const snapshotCount = Math.max(1, parseInt(document.getElementById('trace-snapshots').value,   10) || 50);
+  const { engine } = selectionPanel.buildEngine(1, controls.mutationRate);
+
+  _traceState = 'running';
+  document.getElementById('btn-run-trace').disabled  = true;
+  document.getElementById('btn-stop-trace').disabled = false;
+
+  lineageView.startTrace({
+    startGenome:       rootGenome,
+    generations,
+    snapshotCount,
+    mutationRate:      controls.mutationRate,
+    mutationMode:      controls.mutationMode,
+    transpositionRate: controls.transpositionRate,
+    inversionRate:     controls.inversionRate,
+    selectionEngine:   engine.modes?.length > 0 ? engine : null,
+  });
+});
+
+document.getElementById('btn-stop-trace')?.addEventListener('click', () => {
+  lineageView.stopTrace();
+  _traceState = 'idle';
+  document.getElementById('btn-run-trace').disabled  = false;
+  document.getElementById('btn-stop-trace').disabled = true;
+});
 
 // ── Keyboard shortcuts ────────────────────────────────────────────────────
 window.addEventListener('keydown', e => {

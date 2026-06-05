@@ -13,10 +13,12 @@ export class Simulation {
    * @param {Genome}  [opts.rootGenome]
    * @param {import('../selection/selectionEngine.js').SelectionEngine} [opts.selectionEngine]
    * @param {number}  [opts.selectionStrength]   0–1
-   * @param {boolean} [opts.useCrossover]         enable sexual reproduction
-   * @param {string}  [opts.mutationMode]         'point'|'inversion'|'swap'|'mixed'
-   * @param {number}  [opts.transpositionRate]    0–1 per-genome probability of a segment swap
-   * @param {number}  [opts.inversionRate]        0–1 per-genome probability of a part inversion
+   * @param {boolean} [opts.useCrossover]            enable sexual reproduction
+   * @param {string}  [opts.mutationMode]            'point'|'inversion'|'swap'|'mixed'
+   * @param {number}  [opts.transpositionRate]       0–1 per-genome probability of a segment swap
+   * @param {number}  [opts.inversionRate]           0–1 per-genome probability of a part inversion
+   * @param {boolean} [opts.proportionalReproduction] fitter parents produce more offspring
+   * @param {number}  [opts.effectivePopSize]        Wright-Fisher drift cap (Infinity = off)
    * @param {import('./statsCollector.js').StatsCollector} [opts.statsCollector]
    */
   constructor({
@@ -24,22 +26,26 @@ export class Simulation {
     branchingFactor,
     mutationRate,
     rootGenome,
-    selectionEngine   = null,
-    selectionStrength = 0,
-    useCrossover      = false,
-    mutationMode      = 'point',
-    transpositionRate = 0,
-    inversionRate     = 0,
-    statsCollector    = null,
+    selectionEngine          = null,
+    selectionStrength        = 0,
+    useCrossover             = false,
+    mutationMode             = 'point',
+    transpositionRate        = 0,
+    inversionRate            = 0,
+    proportionalReproduction = false,
+    effectivePopSize         = Infinity,
+    statsCollector           = null,
   }) {
-    this.generations      = generations;
-    this.branchingFactor  = branchingFactor;
-    this.mutator          = new Mutator({ mutationRate, transpositionRate, inversionRate });
-    this.selectionEngine  = selectionEngine;
-    this.selectionStrength = selectionStrength;
-    this.useCrossover     = useCrossover;
-    this.mutationMode     = mutationMode;
-    this.statsCollector   = statsCollector;
+    this.generations             = generations;
+    this.branchingFactor         = branchingFactor;
+    this.mutator                 = new Mutator({ mutationRate, transpositionRate, inversionRate });
+    this.selectionEngine         = selectionEngine;
+    this.selectionStrength       = selectionStrength;
+    this.useCrossover            = useCrossover;
+    this.mutationMode            = mutationMode;
+    this.proportionalReproduction = proportionalReproduction;
+    this.effectivePopSize        = effectivePopSize;
+    this.statsCollector          = statsCollector;
 
     TreeNode.resetIdCounter();
     this.root = new TreeNode(rootGenome ?? Genome.random(), null, 0);
@@ -63,9 +69,11 @@ export class Simulation {
 
     for (let gen = 0; gen < this.generations; gen++) {
       const newNodes = [];
+      const avgFit = _avgFitness(activeFrontier);
 
       for (const parent of activeFrontier) {
-        for (let i = 0; i < this.branchingFactor; i++) {
+        const count = _offspringCount(this.branchingFactor, parent.fitness, avgFit, this.proportionalReproduction);
+        for (let i = 0; i < count; i++) {
           if (totalNodes >= MAX_NODES) break;
           const child = new TreeNode(
             this._makeChildGenome(parent, activeFrontier),
@@ -86,7 +94,7 @@ export class Simulation {
         for (const node of newNodes) {
           node.fitness = this.selectionEngine.computeFitness(node, allNodes, gen + 1);
         }
-        activeFrontier = this.selectionEngine.applySelection(newNodes, this.selectionStrength);
+        activeFrontier = this.selectionEngine.applySelection(newNodes, this.selectionStrength, this.effectivePopSize);
       } else {
         activeFrontier = newNodes;
       }
@@ -112,9 +120,11 @@ export class Simulation {
 
     for (let gen = 0; gen < this.generations; gen++) {
       const newNodes = [];
+      const avgFit = _avgFitness(activeFrontier);
 
       for (const parent of activeFrontier) {
-        for (let i = 0; i < this.branchingFactor; i++) {
+        const count = _offspringCount(this.branchingFactor, parent.fitness, avgFit, this.proportionalReproduction);
+        for (let i = 0; i < count; i++) {
           if (totalNodes >= MAX_NODES) break;
           const child = new TreeNode(
             this._makeChildGenome(parent, activeFrontier),
@@ -145,7 +155,7 @@ export class Simulation {
       if (overrideSurvivors != null) {
         activeFrontier = overrideSurvivors;
       } else if (this.selectionEngine) {
-        activeFrontier = this.selectionEngine.applySelection(newNodes, this.selectionStrength);
+        activeFrontier = this.selectionEngine.applySelection(newNodes, this.selectionStrength, this.effectivePopSize);
       } else {
         newNodes.forEach(n => { n.alive = true; });
         activeFrontier = newNodes;
@@ -164,6 +174,20 @@ export class Simulation {
     }
     return total;
   }
+}
+
+// Returns average fitness of a frontier (default 1 when no fitness set yet)
+function _avgFitness(frontier) {
+  if (frontier.length === 0) return 1;
+  return frontier.reduce((s, n) => s + (n.fitness ?? 1), 0) / frontier.length;
+}
+
+// Probabilistic offspring count for fitness-proportional reproduction.
+// Uses stochastic rounding so the expected total equals branchingFactor × N.
+function _offspringCount(branchingFactor, fitness, avgFitness, proportional) {
+  if (!proportional || avgFitness <= 0) return branchingFactor;
+  const target = branchingFactor * (fitness ?? 1) / avgFitness;
+  return Math.floor(target) + (Math.random() < (target % 1) ? 1 : 0);
 }
 
 function _randomMate(frontier, exclude) {

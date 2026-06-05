@@ -138,6 +138,24 @@ export class SelectionPanel {
 
         <div class="sel-section">
           <label class="sel-section-header">
+            <input type="checkbox" id="chk-drift" />
+            <span>Genetic drift</span>
+          </label>
+          <div class="sel-section-body hidden" id="sel-body-drift">
+            <p style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">
+              Limits survivors each generation via random sampling (Wright-Fisher).<br>
+              Alleles can fix or vanish purely by chance, independent of fitness.
+            </p>
+            <label class="control-row">
+              <span class="label-text">Pop. size N<sub>e</sub></span>
+              <input type="range" id="drift-pop-size" min="2" max="50" value="10" />
+              <span class="value-display" id="val-drift-pop">10</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="sel-section">
+          <label class="sel-section-header">
             <input type="checkbox" id="chk-player" />
             <span>Player selection</span>
           </label>
@@ -159,6 +177,7 @@ export class SelectionPanel {
       { id: 'chk-predator',  key: 'predator' },
       { id: 'chk-resource',  key: 'resource' },
       { id: 'chk-epistasis', key: 'epistasis' },
+      { id: 'chk-drift',     key: 'drift' },
       { id: 'chk-player',    key: 'player' },
     ];
 
@@ -215,6 +234,11 @@ export class SelectionPanel {
     // Epistasis strength
     document.getElementById('epistasis-strength')?.addEventListener('input', e => {
       document.getElementById('val-epistasis-strength').textContent = e.target.value + '%';
+    });
+
+    // Genetic drift pop size
+    document.getElementById('drift-pop-size')?.addEventListener('input', e => {
+      document.getElementById('val-drift-pop').textContent = e.target.value;
     });
 
     // Predator mutation rate display
@@ -323,4 +347,10 @@ export class SelectionPanel {
   }
 
   get isPlayerMode() { return this._enabledModes.has('player'); }
+
+  /** Wright-Fisher effective population size, or Infinity when drift is off. */
+  get effectivePopSize() {
+    if (!this._enabledModes.has('drift')) return Infinity;
+    return parseInt(document.getElementById('drift-pop-size')?.value ?? 10, 10);
+  }
 }

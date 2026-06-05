@@ -1,16 +1,27 @@
 import { Genome, ALPHABET, TOTAL_LENGTH, PART_COUNT, PART_LENGTH } from './genome.js';
 
 export class Mutator {
-  constructor({ mutationRate = 0.01, transpositionRate = 0, inversionRate = 0 } = {}) {
+  /**
+   * @param {object} opts
+   * @param {number}   opts.mutationRate      per-position substitution probability
+   * @param {number}   opts.transpositionRate per-genome segment-swap probability
+   * @param {number}   opts.inversionRate     per-genome part-inversion probability
+   * @param {number[]|null} opts.partRates    optional 15-element array of per-part rate
+   *                                          multipliers (e.g. [3,3,1,...] for hotspot parts)
+   */
+  constructor({ mutationRate = 0.01, transpositionRate = 0, inversionRate = 0, partRates = null } = {}) {
     this.mutationRate      = mutationRate;
     this.transpositionRate = transpositionRate;
     this.inversionRate     = inversionRate;
+    this.partRates         = partRates; // null = uniform across all parts
   }
 
   mutate(genome) {
     const chars = [...genome.sequence];
     for (let i = 0; i < chars.length; i++) {
-      if (Math.random() < this.mutationRate) {
+      const part = Math.floor(i / PART_LENGTH);
+      const rate = this.mutationRate * (this.partRates ? this.partRates[part] : 1.0);
+      if (Math.random() < rate) {
         const others = ALPHABET.filter(c => c !== chars[i]);
         chars[i] = others[Math.floor(Math.random() * others.length)];
       }
@@ -75,6 +86,9 @@ export class Mutator {
   }
 
   get expectedMutations() {
-    return Math.round(this.mutationRate * 120 * 10) / 10;
+    const avgMultiplier = this.partRates
+      ? this.partRates.reduce((s, r) => s + r, 0) / this.partRates.length
+      : 1.0;
+    return Math.round(this.mutationRate * avgMultiplier * TOTAL_LENGTH * 10) / 10;
   }
 }
