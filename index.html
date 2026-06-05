@@ -83,6 +83,11 @@
           </label>
 
           <label class="control-row crossover-row">
+            <input type="checkbox" id="ctrl-prop-reproduction" />
+            <span class="label-text">Fitness-scaled fecundity</span>
+          </label>
+
+          <label class="control-row crossover-row">
             <input type="checkbox" id="ctrl-speciation" />
             <span class="label-text">Species colouring</span>
           </label>
@@ -100,6 +105,11 @@
 
       <!-- Center panel: evolutionary tree + stats -->
       <section id="panel-tree">
+        <div id="mode-tabs">
+          <button id="tab-tree"  class="tab-btn active">Tree</button>
+          <button id="tab-trace" class="tab-btn">Trace</button>
+        </div>
+
         <div id="tree-row">
           <div id="tree-container">
             <svg id="tree-svg" xmlns="http://www.w3.org/2000/svg">
@@ -122,6 +132,23 @@
               </g>
             </svg>
           </div>
+        </div>
+
+        <!-- Lineage trace panel -->
+        <div id="trace-panel" class="hidden">
+          <div id="trace-controls">
+            <label class="control-row">
+              <span class="label-text">Generations</span>
+              <input type="number" id="trace-generations" min="1" max="50000" value="1000" />
+            </label>
+            <label class="control-row">
+              <span class="label-text">Snapshots</span>
+              <input type="number" id="trace-snapshots" min="10" max="500" value="50" />
+            </label>
+            <button id="btn-run-trace"  class="btn btn-primary btn-sm">&#9654; Run Trace</button>
+            <button id="btn-stop-trace" class="btn btn-secondary btn-sm" disabled>&#9632; Stop</button>
+          </div>
+          <div id="trace-view-mount"></div>
         </div>
 
         <!-- Stats panel (collapsible) -->

@@ -40,7 +40,8 @@ export class ControlsPanel {
 
   get generations()     { return parseInt(this._genSlider.value, 10); }
   get branchingFactor() { return parseInt(this._branchSlider.value, 10); }
-  get useCrossover()    { return this._chkCrossover?.checked ?? false; }
+  get useCrossover()           { return this._chkCrossover?.checked ?? false; }
+  get proportionalReproduction() { return document.getElementById('ctrl-prop-reproduction')?.checked ?? false; }
   get playbackSpeed()   { return parseInt(this._speedSelect?.value ?? '500', 10); }
   get mutationMode()        { return this._mutModeSelect?.value ?? 'point'; }
   get transpositionRate()   { return parseInt(this._transpositionSlider?.value ?? 0, 10) / 100; }
