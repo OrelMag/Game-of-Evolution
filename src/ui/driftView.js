@@ -1,4 +1,5 @@
 import { PART_NAMES } from '../creature/traits.js';
+import { tooltip } from './tooltip.js';
 
 const PART_COUNT  = 15;
 const PART_LENGTH = 8;
@@ -8,7 +9,6 @@ export class DriftView {
   constructor(canvasId) {
     this._canvas      = document.getElementById(canvasId);
     this._currentGen  = null;
-    this._tooltip     = null;
     this._lastCollector = null;
     this._bindTooltip();
   }
@@ -139,18 +139,11 @@ export class DriftView {
   }
 
   _showTooltip(x, y, text) {
-    if (!this._tooltip) {
-      this._tooltip = document.createElement('div');
-      this._tooltip.className = 'drift-tooltip';
-      document.body.appendChild(this._tooltip);
-    }
-    this._tooltip.textContent = text;
-    this._tooltip.style.cssText =
-      `left:${x + 14}px;top:${y - 10}px;white-space:pre;display:block;`;
+    tooltip.show(x, y, text);
   }
 
   _hideTooltip() {
-    if (this._tooltip) this._tooltip.style.display = 'none';
+    tooltip.hide();
   }
 }
 

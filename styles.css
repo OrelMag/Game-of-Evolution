@@ -575,3 +575,65 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 
 #tree-svg       { position: relative; z-index: 1; }
 #tree-empty-msg { z-index: 2; }
+
+/* ── Shared tooltip ──────────────────────────────────────────────────────── */
+.tooltip {
+  position: fixed;
+  background: var(--bg-panel2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 11px;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  pointer-events: none;
+  z-index: 999;
+  white-space: pre;
+  max-width: 220px;
+  line-height: 1.5;
+}
+
+/* ── Help icon (ⓘ) ──────────────────────────────────────────────────────── */
+.help-icon {
+  color: var(--text-dim);
+  cursor: default;
+  font-size: 11px;
+  user-select: none;
+  flex-shrink: 0;
+  line-height: 1;
+  margin-left: 3px;
+  vertical-align: middle;
+}
+.help-icon:hover { color: var(--text); }
+
+/* ── Tree legend ─────────────────────────────────────────────────────────── */
+#tree-legend {
+  position: absolute;
+  bottom: 42px;
+  right: 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  color: var(--text-dim);
+  z-index: 3;
+  min-width: 180px;
+}
+#tree-legend-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  cursor: pointer;
+  user-select: none;
+  color: var(--text);
+  font-size: 11px;
+}
+#tree-legend-header:hover { color: var(--accent); }
+#tree-legend-body { padding: 6px 8px; display: flex; flex-direction: column; gap: 5px; }
+#tree-legend-body.hidden { display: none; }
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  line-height: 1.3;
+}

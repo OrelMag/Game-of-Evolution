@@ -1,4 +1,5 @@
 import { Simulation, MAX_NODES } from '../simulation/simulation.js';
+import { Tooltip } from './tooltip.js';
 
 export class ControlsPanel {
   constructor({ onRun, onRandomize, onPause, onResume, onStep, onScrub }) {
@@ -31,6 +32,7 @@ export class ControlsPanel {
 
     this._bind();
     this._updateHint();
+    this._addHelpIcons();
 
     this._genVal.textContent   = this._genSlider.value;
     this._branchVal.textContent = this._branchSlider.value;
@@ -107,6 +109,47 @@ export class ControlsPanel {
       if (this._scrubberVal) this._scrubberVal.textContent = `Gen ${v}`;
       this.onScrub?.(v);
     });
+  }
+
+  _addHelpIcons() {
+    const add = (el, text) => {
+      const row = el?.closest('.control-row');
+      const lbl = row?.querySelector('.label-text');
+      if (lbl) lbl.appendChild(Tooltip.makeIcon(text));
+    };
+
+    add(this._genSlider,
+      'Number of generations to simulate.\nEach generation every surviving creature\nspawns children. More gens = deeper tree.\nHigh values + high branching can hit\nthe 512-node cap.');
+
+    add(this._branchSlider,
+      'Children per surviving parent each gen.\n1 = linear chain  4 = dense bush.\nTree size ≈ branching ^ generations;\nsimulation caps at 512 nodes.');
+
+    add(this._mutSlider,
+      'Probability a genome character mutates\neach generation. Log scale — slider\nmidpoint ≈ 1%.\nLow (<0.1%): stable lineages.\nHigh (>10%): rapid divergence.');
+
+    add(this._mutModeSelect,
+      'How mutations are applied:\n• Point — random character swaps\n• Inversion — segment reversed in place\n• Segment swap — two segments exchange\n• Mixed — all three every generation');
+
+    add(this._speedSelect,
+      'Animation delay between generations.\nInstant skips the delay entirely;\nSlow lets you watch selection\neliminate lineages step by step.');
+
+    add(this._transpositionSlider,
+      'Chance a genome segment jumps to a\nnew position each generation (transposon).\nPreserves local sequence but causes\nlarge phenotypic jumps.');
+
+    add(this._inversionSlider,
+      'Chance a genome segment is flipped\nend-to-end each generation.\nPreserves characters but changes\nwhich body part they encode.');
+
+    add(this._chkCrossover,
+      'Two-parent recombination: offspring\ninherits left segment from one parent\nand right from another.\nProduces the ✕ badge on tree nodes.');
+
+    add(document.getElementById('ctrl-prop-reproduction'),
+      'Fitter creatures produce more children;\nweaker ones produce fewer (min 1).\nAmplifies selection without\nexplicitly culling lineages.');
+
+    add(document.getElementById('ctrl-speciation'),
+      'Colours each detected species ring.\nSpecies split when Hamming distance\nexceeds ~20% from clade founder.');
+
+    add(this._scrubber,
+      'Scrub back through completed gens.\nNodes beyond the selected gen are\ndimmed. Stats chart cursor follows.');
   }
 
   _updateHint() {

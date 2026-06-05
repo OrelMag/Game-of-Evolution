@@ -25,6 +25,7 @@ export class TreeView {
     this.showSpeciesColors  = false;  // controlled by SpeciationEngine
 
     this._bindPanZoom();
+    this._createLegend();
   }
 
   /** Render the entire tree rooted at `root`. */
@@ -361,6 +362,65 @@ export class TreeView {
       this._transform.scale = Math.max(0.2, Math.min(4, this._transform.scale * factor));
       this._applyTransform();
     }, { passive: false });
+  }
+
+  _createLegend() {
+    if (this.isPredator) return;
+    const container = this.svg.parentElement;
+    const legend = document.createElement('div');
+    legend.id = 'tree-legend';
+    legend.innerHTML = `
+      <div id="tree-legend-header">Legend <span id="tree-legend-toggle">&#9658;</span></div>
+      <div id="tree-legend-body" class="hidden">
+        <div class="legend-row">
+          <svg width="14" height="14" style="flex-shrink:0"><circle cx="7" cy="7" r="6" fill="none" stroke="#5b8af5" stroke-width="2"/></svg>
+          <span>Alive node</span>
+        </div>
+        <div class="legend-row">
+          <svg width="14" height="14" style="flex-shrink:0"><circle cx="7" cy="7" r="6" fill="none" stroke="#2a2f45" stroke-width="2"/></svg>
+          <span>Dead (eliminated by selection)</span>
+        </div>
+        <div class="legend-row">
+          <svg width="14" height="14" style="flex-shrink:0"><text x="7" y="11" text-anchor="middle" font-size="8" fill="#4ade80">88%</text></svg>
+          <span>Fitness badge (green &ge;60%, orange below)</span>
+        </div>
+        <div class="legend-row">
+          <svg width="14" height="14" style="flex-shrink:0"><text x="10" y="6" font-size="9" fill="#a78bfa">&#10005;</text></svg>
+          <span>Crossover offspring (two parents)</span>
+        </div>
+        <div class="legend-row">
+          <svg width="14" height="14" style="flex-shrink:0"><circle cx="7" cy="7" r="6" fill="none" stroke="#fbbf24" stroke-width="2.5"/></svg>
+          <span>MRCA — most recent common ancestor</span>
+        </div>
+        <div class="legend-row">
+          <svg width="14" height="14" style="flex-shrink:0"><circle cx="7" cy="7" r="6" fill="none" stroke="#fb923c" stroke-width="2" stroke-dasharray="4 2"/></svg>
+          <span>Compare-A (orange dashes)</span>
+        </div>
+        <div class="legend-row">
+          <svg width="14" height="14" style="flex-shrink:0"><circle cx="7" cy="7" r="6" fill="none" stroke="#a78bfa" stroke-width="2" stroke-dasharray="4 2"/></svg>
+          <span>Compare-B (purple dashes)</span>
+        </div>
+        <div class="legend-row">
+          <svg width="14" height="14" style="flex-shrink:0"><circle cx="7" cy="7" r="6" fill="none" stroke="#60a5fa" stroke-width="2.5"/></svg>
+          <span>Clade member (highlighted subtree)</span>
+        </div>
+        <div class="legend-row">
+          <svg width="14" height="14" style="flex-shrink:0"><circle cx="7" cy="7" r="6" fill="none" stroke="#e05a6a" stroke-width="2"/></svg>
+          <span>Predator node (red tree)</span>
+        </div>
+      </div>
+    `;
+    container.appendChild(legend);
+
+    const header = legend.querySelector('#tree-legend-header');
+    const body   = legend.querySelector('#tree-legend-body');
+    const toggle = legend.querySelector('#tree-legend-toggle');
+    let open = false;
+    header.addEventListener('click', () => {
+      open = !open;
+      body.classList.toggle('hidden', !open);
+      toggle.innerHTML = open ? '&#9660;' : '&#9658;';
+    });
   }
 }
 

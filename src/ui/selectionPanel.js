@@ -1,4 +1,5 @@
 import { SelectionEngine } from '../selection/selectionEngine.js';
+import { Tooltip } from './tooltip.js';
 import { EnvironmentMode, ENVIRONMENTS } from '../selection/environmentMode.js';
 import { TargetMode } from '../selection/targetMode.js';
 import { PredatorMode } from '../selection/predatorMode.js';
@@ -24,6 +25,7 @@ export class SelectionPanel {
     this._mount = document.getElementById('selection-panel-mount');
     this._render();
     this._bind();
+    this._addHelpIcons();
   }
 
   _render() {
@@ -37,6 +39,10 @@ export class SelectionPanel {
             <span>Environment</span>
           </label>
           <div class="sel-section-body hidden" id="sel-body-env">
+            <p style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">
+              Each body part scored by cosine similarity to the habitat's preferred G/O/D ratios.
+              Switch environments mid-run to drive rapid adaptation.
+            </p>
             <select class="env-select" id="env-select">
               ${Object.entries(ENVIRONMENTS).map(([k, v]) =>
                 `<option value="${k}">${v.label}</option>`
@@ -65,6 +71,10 @@ export class SelectionPanel {
               <div class="hamming-fill" id="hamming-fill" style="width:0%"></div>
             </div>
             <p style="font-size:10px;color:var(--text-dim);margin-top:3px;" id="hamming-label">No target set</p>
+            <p style="font-size:11px;color:var(--text-dim);margin-top:6px;margin-bottom:4px;">
+              Fitness = 1 − (Hamming / 120). Use ↺ Random or 🖱 Pick from tree,
+              or type a 120-char G/O/D string directly.
+            </p>
             <label class="control-row selection-strength-row">
               <span class="label-text">Strength</span>
               <input type="range" id="target-strength" min="0" max="100" value="70" />
@@ -80,8 +90,9 @@ export class SelectionPanel {
           </label>
           <div class="sel-section-body hidden" id="sel-body-predator">
             <p style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">
-              A second lineage evolves to track prey. Prey evolves to evade.<br>
-              <span style="color:var(--red);">Red tree</span> = predator.
+              A co-evolving <span style="color:var(--red);">red-tree lineage</span> tracks prey genomes.
+              Prey fitness falls when the predator is genetically close; diverging prey survive.
+              Pred. mutation sets how fast the predator evolves.
             </p>
             <label class="control-row">
               <span class="label-text">Pred. mutation</span>
@@ -103,8 +114,9 @@ export class SelectionPanel {
           </label>
           <div class="sel-section-body hidden" id="sel-body-resource">
             <p style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">
-              Creatures with similar genomes compete for the same niche.<br>
-              Crowded niches reduce fitness.
+              Creatures within Niche radius% Hamming distance compete for the same niche.
+              Crowded niches cut fitness proportionally — equivalent to frequency-dependent selection.
+              Drives diversification without explicit predation.
             </p>
             <label class="control-row">
               <span class="label-text">Niche radius</span>
@@ -126,8 +138,8 @@ export class SelectionPanel {
           </label>
           <div class="sel-section-body hidden" id="sel-body-epistasis">
             <p style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">
-              Gene interactions: compatible body plans score bonuses;<br>
-              mismatched morphologies are penalised.
+              Certain gene combinations score a synergy bonus; incompatible ones are penalised.
+              Simulates co-adapted gene complexes. High strength locks genomes into stable epistatic peaks.
             </p>
             <label class="control-row selection-strength-row">
               <span class="label-text">Strength</span>
@@ -144,8 +156,9 @@ export class SelectionPanel {
           </label>
           <div class="sel-section-body hidden" id="sel-body-drift">
             <p style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">
-              Limits survivors each generation via random sampling (Wright-Fisher).<br>
-              Alleles can fix or vanish purely by chance, independent of fitness.
+              After each gen, only N<sub>e</sub> survivors are kept by random lottery regardless of fitness (Wright-Fisher).
+              Small N<sub>e</sub> → strong drift; alleles fix or vanish by chance alone.
+              Combine with selection to see how drift limits adaptive response.
             </p>
             <label class="control-row">
               <span class="label-text">Pop. size N<sub>e</sub></span>
@@ -162,8 +175,8 @@ export class SelectionPanel {
           </label>
           <div class="sel-section-body hidden" id="sel-body-player">
             <p style="font-size:11px;color:var(--text-dim);">
-              After each generation you choose which creatures survive.<br>
-              Click a creature card to keep or cull it, then confirm.
+              A voting panel appears after each gen. Click a card green to keep it, grey to cull.
+              At least one must survive. Use ⏭ Step to advance one gen at a time at your own pace.
             </p>
           </div>
         </div>
@@ -261,6 +274,36 @@ export class SelectionPanel {
     document.getElementById('pred-strength')?.addEventListener('input', e => {
       document.getElementById('val-pred-strength').textContent = e.target.value + '%';
     });
+  }
+
+  _addHelpIcons() {
+    const add = (id, text) => {
+      const el  = document.getElementById(id);
+      const row = el?.closest('.control-row');
+      const lbl = row?.querySelector('.label-text');
+      if (lbl) lbl.appendChild(Tooltip.makeIcon(text));
+    };
+
+    const STRENGTH_TEXT =
+      'How strongly this pressure shapes survival.\n' +
+      '0% = active but no effect.\n' +
+      '100% = only top scorers survive.\n' +
+      'Multiple modes stack multiplicatively.';
+
+    add('env-strength',       STRENGTH_TEXT);
+    add('target-strength',    STRENGTH_TEXT);
+    add('pred-strength',      STRENGTH_TEXT);
+    add('resource-strength',  STRENGTH_TEXT);
+    add('epistasis-strength', STRENGTH_TEXT);
+
+    add('resource-niche-radius',
+      'Hamming distance threshold (% of 120 chars)\nwithin which creatures share a niche.\nSmall = tight niches, more species coexist.\nLarge = broad competition, fewer niches.');
+
+    add('pred-mutation',
+      'Mutation rate for the predator lineage.\nFaster predator = tighter arms race.\nSame log scale as the main mutation slider.');
+
+    add('drift-pop-size',
+      'Effective population size N_e.\nN_e survivors chosen each gen by lottery.\nSmall N_e → strong drift; large → negligible.');
   }
 
   _parseTargetInput(val) {
