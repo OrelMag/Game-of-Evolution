@@ -62,6 +62,12 @@ Transposition and inversion can be stacked on top of the primary mutation type v
 - **Sexual reproduction**: enable the checkbox to allow fitness-weighted mate selection and single-point crossover before mutation. Nodes produced by crossover are marked with a ✕ badge in the tree.
 - **Fitness-scaled fecundity**: enable the checkbox to give fitter parents proportionally more offspring each generation (stochastic rounding keeps total offspring count stable).
 
+### Lineage trace
+
+The **Trace** tab (next to Tree) follows a single evolutionary path for up to 50,000 generations — something the branching tree cannot do due to its 1024-node cap. Each generation one child is produced by mutating the current organism; no branching occurs. The tracer samples N evenly-spaced snapshots and renders them as a scrollable filmstrip of creature thumbnails. Clicking any thumbnail opens it in the creature detail panel.
+
+Because only one organism exists at each step, selection modes score its fitness for display purposes but cannot eliminate it — the lineage always continues. This makes the Trace mode ideal for studying long-term morphological drift, the effect of mutation type on phenotypic change rate, and what a single uninterrupted evolutionary trajectory looks like.
+
 ### Selection modes
 
 | Mode | Description |
@@ -90,6 +96,17 @@ Multiple modes can be active simultaneously; the final fitness is the product of
 - **Sexual reproduction**: enable fitness-weighted crossover before mutation
 - **Fitness-scaled fecundity**: fitter parents produce more offspring
 - **Species colouring**: colour nodes by inferred species (genetic distance clustering)
+
+### Trace panel
+
+Switch to the **Trace** tab to access the single-lineage tracer:
+
+- **Generations** (1–50,000): how many generations to trace
+- **Snapshots** (10–500): number of evenly-spaced creature thumbnails to display
+- **▶ Run Trace**: start tracing from the current root genome with the mutation settings from the Simulation panel
+- **■ Stop**: halt tracing mid-run; partial filmstrip stays visible
+
+Mutation type, rate, transposition/inversion rates, and any active selection modes are all inherited from the left panel — no separate configuration needed.
 
 ### Playback controls
 
@@ -143,6 +160,7 @@ src/
     treeNode.js           Node with genome, fitness, alive flag, secondParent, children
     statsCollector.js     Per-generation fitness, diversity, and per-position entropy
     speciationEngine.js   Genetic-distance clustering for species colour assignment
+    lineageTracer.js      Single-lineage tracer — generator-based, up to 50 000 generations
   selection/     pluggable fitness modes
     selectionEngine.js    Multiplicative blending + Wright-Fisher drift sampling
     environmentMode.js    5 environment presets (cosine similarity)

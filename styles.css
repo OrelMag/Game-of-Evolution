@@ -500,3 +500,64 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 }
 #btn-show-stats { left: calc(50% - 46px); transform: none; }
 #btn-show-drift  { left: calc(50% + 4px);  transform: none; }
+
+/* ── Mode tabs (Tree / Trace) ─────────────────────────────── */
+#mode-tabs {
+  display: flex; gap: 4px; padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0; background: var(--bg-panel);
+}
+#mode-tabs .tab-btn {
+  padding: 3px 14px; font-size: 12px; border-radius: var(--radius-sm);
+  border: 1px solid transparent; background: transparent;
+  color: var(--text-dim); cursor: pointer;
+}
+#mode-tabs .tab-btn:hover  { background: var(--bg-panel2); color: var(--text); }
+#mode-tabs .tab-btn.active { background: var(--bg-panel2); color: var(--accent); border-color: var(--border); }
+
+/* ── Trace panel layout ───────────────────────────────────── */
+#trace-panel {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0;
+}
+#trace-controls {
+  display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+  border-bottom: 1px solid var(--border); flex-shrink: 0; flex-wrap: wrap;
+}
+#trace-controls .control-row { margin: 0; gap: 6px; }
+#trace-controls input[type="number"] {
+  width: 80px; padding: 3px 6px;
+  background: var(--bg-panel2); border: 1px solid var(--border);
+  color: var(--text); border-radius: var(--radius-sm); font-size: 12px;
+}
+#trace-view-mount {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0;
+}
+
+/* ── Progress bar ─────────────────────────────────────────── */
+.trace-progress-wrap {
+  height: 4px; background: var(--border); flex-shrink: 0; overflow: hidden;
+}
+.trace-progress-bar {
+  height: 100%; background: var(--accent); width: 0%; transition: width 0.12s linear;
+}
+.trace-status {
+  padding: 4px 12px; font-size: 11px; color: var(--text-dim); flex-shrink: 0;
+}
+
+/* ── Filmstrip ────────────────────────────────────────────── */
+.trace-filmstrip {
+  display: flex; flex-direction: row; align-items: flex-start;
+  gap: 8px; padding: 12px; overflow-x: auto; overflow-y: hidden;
+  flex: 1;
+}
+.trace-thumb {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  flex-shrink: 0; cursor: pointer; border-radius: var(--radius-sm);
+  border: 2px solid transparent; padding: 4px;
+  background: var(--bg-panel2); transition: border-color 0.12s;
+}
+.trace-thumb:hover  { border-color: var(--accent); }
+.trace-thumb.selected { border-color: var(--accent); }
+.trace-thumb img    { border-radius: 3px; display: block; }
+.trace-thumb-label  { font-size: 9px; color: var(--text-dim); white-space: nowrap; }
+.trace-thumb-fitness{ font-size: 9px; color: var(--green); }
