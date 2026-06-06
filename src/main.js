@@ -37,16 +37,17 @@ let compareNodeA = null;
 let compareNodeB = null;
 
 // Playback state
-let _playbackGen        = null;
-let _playbackState      = 'idle'; // 'idle'|'playing'|'paused'|'voting'|'done'
-let _playbackTimer      = null;
-let _pendingSurvivors   = undefined;
-let _stepInProgress     = false;
-let _currentSelEngine   = null;
-let _currentStrength    = 0;
-let _currentEffPopSize  = Infinity;
-let _artificialMode     = false;
-let _statsCollector     = new StatsCollector();
+let _playbackGen          = null;
+let _playbackState        = 'idle'; // 'idle'|'playing'|'paused'|'voting'|'done'
+let _playbackTimer        = null;
+let _pendingSurvivors     = undefined;
+let _stepInProgress       = false;
+let _currentSelEngine     = null;
+let _currentStrength      = 0;
+let _currentEffPopSize    = Infinity;
+let _artificialMode       = false;
+let _statsCollector       = new StatsCollector();
+let _infiniteMaxSurvivors = null; // non-null when infinite mode is active
 
 const SELECTION_DELAY_MS = 280; // wait after showing nodes before marking dead ones
 
@@ -162,16 +163,19 @@ function startPlayback({ generations, branchingFactor, mutationRate }) {
   let selEngine = engine;
   if (predatorMode) selEngine = _wrapWithPredator(engine, predatorMode);
 
-  _currentSelEngine  = selEngine.modes?.length > 0 ? selEngine : null;
-  _currentStrength   = selectionPanel.selectionStrength;
-  _currentEffPopSize = selectionPanel.effectivePopSize;
-  _artificialMode    = selectionPanel.isPlayerMode;
-  _statsCollector    = new StatsCollector();
+  _currentSelEngine     = selEngine.modes?.length > 0 ? selEngine : null;
+  _currentStrength      = selectionPanel.selectionStrength;
+  _currentEffPopSize    = selectionPanel.effectivePopSize;
+  _artificialMode       = selectionPanel.isPlayerMode;
+  _infiniteMaxSurvivors = controls.infinite ? controls.maxSurvivors : null;
+  _statsCollector       = new StatsCollector();
   statsView.update([]);
   _narrator.clear();
 
+  const effectiveGenerations = controls.infinite ? Infinity : generations;
+
   const sim = new Simulation({
-    generations,
+    generations: effectiveGenerations,
     branchingFactor,
     mutationRate,
     rootGenome,
@@ -273,6 +277,19 @@ function _runStep() {
     newNodes.forEach(n => { n.alive = true; });
     autoSurvivors = [...newNodes];
   }
+  // In infinite mode, cap the active frontier to prevent exponential tree growth
+  if (_infiniteMaxSurvivors !== null && autoSurvivors.length > _infiniteMaxSurvivors) {
+    autoSurvivors.sort((a, b) => (b.fitness ?? 1) - (a.fitness ?? 1));
+    autoSurvivors.slice(_infiniteMaxSurvivors).forEach(n => { n.alive = false; });
+    autoSurvivors = autoSurvivors.slice(0, _infiniteMaxSurvivors);
+  }
+
+  // Update the hint area with live generation count during infinite runs
+  if (_infiniteMaxSurvivors !== null) {
+    const hint = document.getElementById('node-count-hint');
+    if (hint) { hint.textContent = `Gen ${generation}`; hint.className = 'hint'; }
+  }
+
   _pendingSurvivors = autoSurvivors;
 
   setTimeout(() => {

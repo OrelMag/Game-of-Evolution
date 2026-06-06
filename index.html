@@ -27,10 +27,21 @@
         <section class="control-section">
           <h2>Simulation</h2>
 
-          <label class="control-row">
+          <label class="control-row" id="row-generations">
             <span class="label-text">Generations</span>
             <input type="range" id="ctrl-generations" min="1" max="20" value="5" />
             <span class="value-display" id="val-generations">5</span>
+          </label>
+
+          <label class="control-row crossover-row">
+            <input type="checkbox" id="ctrl-infinite" />
+            <span class="label-text">Infinite mode</span>
+          </label>
+
+          <label class="control-row" id="row-max-survivors" style="display:none">
+            <span class="label-text">Max survivors</span>
+            <input type="range" id="ctrl-max-survivors" min="2" max="20" value="8" />
+            <span class="value-display" id="val-max-survivors">8</span>
           </label>
 
           <label class="control-row">

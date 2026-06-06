@@ -29,6 +29,9 @@ export class ControlsPanel {
     this._scrubberRow  = document.getElementById('scrubber-row');
     this._scrubber     = document.getElementById('ctrl-scrubber');
     this._scrubberVal  = document.getElementById('val-scrubber');
+    this._infiniteCheck   = document.getElementById('ctrl-infinite');
+    this._survivorsSlider = document.getElementById('ctrl-max-survivors');
+    this._survivorsVal    = document.getElementById('val-max-survivors');
 
     this._bind();
     this._updateHint();
@@ -41,6 +44,8 @@ export class ControlsPanel {
   }
 
   get generations()     { return parseInt(this._genSlider.value, 10); }
+  get infinite()        { return this._infiniteCheck?.checked ?? false; }
+  get maxSurvivors()    { return parseInt(this._survivorsSlider?.value ?? '8', 10); }
   get branchingFactor() { return parseInt(this._branchSlider.value, 10); }
   get useCrossover()           { return this._chkCrossover?.checked ?? false; }
   get proportionalReproduction() { return document.getElementById('ctrl-prop-reproduction')?.checked ?? false; }
@@ -86,11 +91,26 @@ export class ControlsPanel {
       document.getElementById('val-inversion').textContent = e.target.value + '%';
     });
 
+    this._infiniteCheck?.addEventListener('change', () => {
+      const on = this._infiniteCheck.checked;
+      const genRow = document.getElementById('row-generations');
+      if (genRow) genRow.style.display = on ? 'none' : '';
+      const surRow = document.getElementById('row-max-survivors');
+      if (surRow) surRow.style.display = on ? '' : 'none';
+      this._updateHint();
+    });
+
+    this._survivorsSlider?.addEventListener('input', () => {
+      if (this._survivorsVal) this._survivorsVal.textContent = this._survivorsSlider.value;
+    });
+
     this._btnRun.addEventListener('click', () => {
-      const est = Simulation.estimateNodeCount(this.generations, this.branchingFactor);
-      if (est > MAX_NODES) {
-        this._hint.textContent = `⚠ Capped at ${MAX_NODES} nodes`;
-        this._hint.className   = 'hint warn';
+      if (!this.infinite) {
+        const est = Simulation.estimateNodeCount(this.generations, this.branchingFactor);
+        if (est > MAX_NODES) {
+          this._hint.textContent = `⚠ Capped at ${MAX_NODES} nodes`;
+          this._hint.className   = 'hint warn';
+        }
       }
       this.onRun({ generations: this.generations, branchingFactor: this.branchingFactor, mutationRate: this.mutationRate });
     });
@@ -150,9 +170,20 @@ export class ControlsPanel {
 
     add(this._scrubber,
       'Scrub back through completed gens.\nNodes beyond the selected gen are\ndimmed. Stats chart cursor follows.');
+
+    add(this._infiniteCheck,
+      'Run indefinitely — simulation never\nstops on its own. Max survivors caps\nhow many organisms advance each gen,\nkeeping tree growth linear not exponential.');
+
+    add(this._survivorsSlider,
+      'Max organisms that survive each gen\nin infinite mode. Lower = leaner tree,\nfaster. Higher = richer evolutionary\nhistory, more memory over time.');
   }
 
   _updateHint() {
+    if (this._infiniteCheck?.checked) {
+      this._hint.textContent = '∞ — runs until stopped';
+      this._hint.className   = 'hint';
+      return;
+    }
     const est = Simulation.estimateNodeCount(this.generations, this.branchingFactor);
     if (est > MAX_NODES) {
       this._hint.textContent = `~${est} nodes (capped at ${MAX_NODES})`;

@@ -122,10 +122,11 @@ export class Simulation {
       const newNodes = [];
       const avgFit = _avgFitness(activeFrontier);
 
+      const capNodes = this.generations !== Infinity;
       for (const parent of activeFrontier) {
         const count = _offspringCount(this.branchingFactor, parent.fitness, avgFit, this.proportionalReproduction);
         for (let i = 0; i < count; i++) {
-          if (totalNodes >= MAX_NODES) break;
+          if (capNodes && totalNodes >= MAX_NODES) break;
           const { genome, secondParent } = this._makeChildGenome(parent, activeFrontier);
           const child = new TreeNode(genome, parent, gen + 1);
           child.secondParent = secondParent;
@@ -133,7 +134,7 @@ export class Simulation {
           newNodes.push(child);
           totalNodes++;
         }
-        if (totalNodes >= MAX_NODES) break;
+        if (capNodes && totalNodes >= MAX_NODES) break;
       }
 
       if (newNodes.length === 0) break;
