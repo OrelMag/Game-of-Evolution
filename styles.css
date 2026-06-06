@@ -700,3 +700,167 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   gap: 7px;
   line-height: 1.3;
 }
+
+
+/* ── Genome Editor Modal ─────────────────────────────────────────────────── */
+.genome-editor-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.genome-editor-overlay.hidden { display: none; }
+
+.genome-editor-modal {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  max-width: 760px;
+  width: calc(100vw - 32px);
+  max-height: calc(100vh - 40px);
+  overflow: hidden;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+}
+
+.genome-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.genome-editor-header h2 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+.genome-editor-close {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 20px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+}
+.genome-editor-close:hover { color: var(--text); }
+
+.genome-editor-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  gap: 0;
+}
+
+.genome-editor-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.genome-editor-preview canvas {
+  border-radius: var(--radius-sm);
+  display: block;
+}
+.genome-editor-preview-label {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.genome-editor-parts {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.genome-part-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.genome-part-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  width: 110px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.part-input {
+  font-family: monospace;
+  font-size: 12px;
+  background: var(--bg-panel2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 3px 6px;
+  width: 88px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.part-input:focus { border-color: var(--accent); }
+.part-input[data-invalid] { border-color: var(--red); background: rgba(224, 90, 106, 0.08); }
+.part-rand-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 3px 7px;
+  line-height: 1;
+}
+.part-rand-btn:hover { color: var(--text); border-color: var(--accent); }
+
+.genome-full-row {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.genome-full-label {
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.genome-display {
+  font-family: monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+  word-break: break-all;
+  white-space: pre-wrap;
+  line-height: 1.6;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  padding: 4px 6px;
+}
+
+.genome-editor-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}

@@ -2,12 +2,13 @@ import { Simulation, MAX_NODES } from '../simulation/simulation.js';
 import { Tooltip } from './tooltip.js';
 
 export class ControlsPanel {
-  constructor({ onRun, onRandomize, onPause, onResume, onStep, onScrub }) {
-    this.onRun       = onRun;
-    this.onRandomize = onRandomize;
-    this.onPause     = onPause;
-    this.onResume    = onResume;
-    this.onStep      = onStep;
+  constructor({ onRun, onRandomize, onPause, onResume, onStep, onScrub, onEditCreature }) {
+    this.onRun          = onRun;
+    this.onRandomize    = onRandomize;
+    this.onPause        = onPause;
+    this.onResume       = onResume;
+    this.onStep         = onStep;
+    this.onEditCreature = onEditCreature;
     this.onScrub     = onScrub;
 
     this._genSlider    = document.getElementById('ctrl-generations');
@@ -22,6 +23,7 @@ export class ControlsPanel {
     this._btnRun       = document.getElementById('btn-run');
     this._btnPause     = document.getElementById('btn-pause');
     this._btnStep      = document.getElementById('btn-step');
+    this._btnEdit      = document.getElementById('btn-edit');
     this._btnRandomize = document.getElementById('btn-randomize');
     this._transpositionSlider = document.getElementById('ctrl-transposition');
     this._inversionSlider     = document.getElementById('ctrl-inversion');
@@ -122,6 +124,7 @@ export class ControlsPanel {
 
     this._btnStep?.addEventListener('click', () => this.onStep?.());
 
+    this._btnEdit?.addEventListener('click', () => this.onEditCreature?.());
     this._btnRandomize.addEventListener('click', () => this.onRandomize());
 
     this._scrubber?.addEventListener('input', () => {
@@ -223,6 +226,7 @@ export class ControlsPanel {
       if (pause) pause.disabled = true;
       if (step)  step.disabled  = true;
     }
+    if (this._btnEdit) this._btnEdit.disabled = (state === 'voting');
   }
 
   setRunning(running) {
