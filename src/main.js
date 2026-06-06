@@ -14,6 +14,7 @@ import { LineageView } from './ui/lineageView.js';
 import { HabitatBackground } from './ui/habitatBackground.js';
 import { GenerationNarrator } from './ui/generationNarrator.js';
 import { AlleleFreqView } from './ui/alleleFreqView.js';
+import { GenomeEditor } from './ui/genomeEditor.js';
 
 // Fisher-Yates random subsampling (mirrors the helper in selectionEngine.js)
 function _wfSample(arr, n) {
@@ -53,12 +54,13 @@ const SELECTION_DELAY_MS = 280; // wait after showing nodes before marking dead 
 
 // ── UI components ─────────────────────────────────────────────────────────
 const controls = new ControlsPanel({
-  onRun:       params => startPlayback(params),
-  onRandomize: handleRandomize,
-  onPause:     handlePause,
-  onResume:    handleResume,
-  onStep:      handleStep,
-  onScrub:     gen => {
+  onRun:          params => startPlayback(params),
+  onRandomize:    handleRandomize,
+  onEditCreature: handleEdit,
+  onPause:        handlePause,
+  onResume:       handleResume,
+  onStep:         handleStep,
+  onScrub:        gen => {
     preyTreeView.setGenerationCutoff(gen);
     statsView.setTimeCursor(gen);
     statsView.redraw();
@@ -112,6 +114,7 @@ const statsView     = new StatsView('stats-canvas');
 const driftView     = new DriftView('drift-canvas');
 const alleleFreqView = new AlleleFreqView('allele-canvas');
 const votingOverlay = new VotingOverlay();
+const genomeEditor  = new GenomeEditor();
 
 let _traceState        = 'idle'; // 'idle'|'running'|'done'
 let _inTraceTab        = false;
@@ -413,6 +416,21 @@ function handleFindMRCA(nodeA, nodeB) {
 
 function handleRandomize() {
   rootGenome = Genome.random();
+  if (currentRoot) {
+    startPlayback({
+      generations:     controls.generations,
+      branchingFactor: controls.branchingFactor,
+      mutationRate:    controls.mutationRate,
+    });
+  } else {
+    creaturePanel.show({ genome: rootGenome, parent: null, generation: 0, fitness: 1, alive: true, id: -1, children: [] });
+  }
+}
+
+async function handleEdit() {
+  const newGenome = await genomeEditor.show(rootGenome);
+  if (!newGenome) return;
+  rootGenome = newGenome;
   if (currentRoot) {
     startPlayback({
       generations:     controls.generations,
