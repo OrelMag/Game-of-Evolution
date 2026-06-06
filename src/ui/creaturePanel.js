@@ -1,5 +1,5 @@
 import { CreatureRenderer } from '../creature/renderer.js';
-import { PART_NAMES } from '../creature/traits.js';
+import { PART_NAMES, PART_CODEBOOK } from '../creature/traits.js';
 import { nameCreature } from '../creature/namer.js';
 
 export class CreaturePanel {
@@ -20,6 +20,7 @@ export class CreaturePanel {
     this._metaGen       = document.getElementById('meta-generation');
     this._metaFitness   = document.getElementById('meta-fitness');
     this._fitnessFill   = document.getElementById('fitness-bar-fill');
+    this._fitnessBreak  = document.getElementById('fitness-breakdown');
     this._genomeParts   = document.getElementById('genome-parts');
     this._btnParent     = document.getElementById('btn-goto-parent');
     this._btnSetTarget  = document.getElementById('btn-set-target');
@@ -58,12 +59,14 @@ export class CreaturePanel {
     const fitPct = (node.fitness * 100).toFixed(1) + '%';
     this._metaFitness.textContent = node.fitness < 1 ? fitPct : '—';
     this._fitnessFill.style.width = (node.fitness * 100).toFixed(1) + '%';
+    this._renderFitnessBreakdown(node.fitnessBreakdown);
 
     if (this._nameEl) {
       this._nameEl.textContent = nameCreature(node.genome);
     }
 
     this._btnParent.disabled = !node.parent;
+    this._renderCrossoverInfo(node);
     this._renderGenome(node.genome);
   }
 
@@ -122,10 +125,68 @@ export class CreaturePanel {
     }
   }
 
+  _renderCrossoverInfo(node) {
+    const el = document.getElementById('crossover-info');
+    if (!el) return;
+
+    if (!node.secondParent) {
+      el.innerHTML = '';
+      return;
+    }
+
+    const seqA  = node.parent?.genome?.sequence ?? '';
+    const seqB  = node.secondParent.genome.sequence;
+    const seqC  = node.genome.sequence;
+
+    // Colour each position by origin: A-only → accent, B-only → orange, both → dim, neither → bright
+    const colored = [...seqC].map((c, i) => {
+      const fromA = seqA[i] === c, fromB = seqB[i] === c;
+      const cls = fromA && fromB ? 'xo-both' : fromA ? 'xo-a' : fromB ? 'xo-b' : 'xo-mut';
+      return `<span class="${cls}">${c}</span>`;
+    }).join('');
+
+    el.innerHTML = `
+      <div class="crossover-badge">⚭ Recombinant offspring</div>
+      <div class="crossover-legend">
+        <span class="xo-a">■</span> from parent A &nbsp;
+        <span class="xo-b">■</span> from parent B &nbsp;
+        <span class="xo-mut">■</span> mutated
+      </div>
+      <div class="crossover-seq">${colored}</div>
+    `;
+  }
+
+  _renderFitnessBreakdown(breakdown) {
+    if (!this._fitnessBreak) return;
+    if (!breakdown || breakdown.length === 0) {
+      this._fitnessBreak.innerHTML = '';
+      return;
+    }
+    this._fitnessBreak.innerHTML = breakdown.map(({ label, score }) => {
+      const pct = (score * 100).toFixed(0);
+      const cls = score >= 0.66 ? 'fit-high' : score >= 0.33 ? 'fit-mid' : 'fit-low';
+      return `<div class="fitness-mode-row">
+        <span class="fitness-mode-label">${label}</span>
+        <div class="fitness-mode-track">
+          <div class="fitness-mode-fill ${cls}" style="width:${pct}%"></div>
+        </div>
+        <span class="fitness-mode-val">${pct}%</span>
+      </div>`;
+    }).join('');
+  }
+
   _renderGenome(genome) {
     this._genomeParts.innerHTML = '';
     for (let i = 0; i < 15; i++) {
       const sub = genome.getSubstring(i);
+      const { gn, on, dn } = genome.decode(i);
+
+      // Determine dominant allele for codebook annotation
+      const dominantIdx = gn >= on && gn >= dn ? 0 : on >= dn ? 1 : 2;
+      const dominantPct = Math.round([gn, on, dn][dominantIdx] * 100);
+      const annotation  = PART_CODEBOOK[i]?.[dominantIdx] ?? '';
+      const annCls      = ['g', 'o', 'd'][dominantIdx];
+
       const row = document.createElement('div');
       row.className = 'genome-part';
 
@@ -137,8 +198,13 @@ export class CreaturePanel {
       seqSpan.className = 'genome-part-seq';
       seqSpan.innerHTML = [...sub].map(c => `<span class="${c.toLowerCase()}">${c}</span>`).join('');
 
+      const annSpan = document.createElement('span');
+      annSpan.className   = `genome-part-ann ${annCls}`;
+      annSpan.textContent = `${annotation} (${dominantPct}%)`;
+
       row.appendChild(nameSpan);
       row.appendChild(seqSpan);
+      row.appendChild(annSpan);
       this._genomeParts.appendChild(row);
     }
   }

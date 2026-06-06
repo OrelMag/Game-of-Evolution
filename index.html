@@ -105,6 +105,7 @@
 
       <!-- Center panel: evolutionary tree + stats -->
       <section id="panel-tree">
+        <div id="generation-narration" class="generation-narration"></div>
         <div id="mode-tabs">
           <button id="tab-tree"  class="tab-btn active">Tree</button>
           <button id="tab-trace" class="tab-btn">Trace</button>
@@ -170,6 +171,16 @@
           <canvas id="drift-canvas"></canvas>
         </div>
         <button id="btn-show-drift" class="btn btn-ghost btn-sm stats-show-btn">🧬 Drift</button>
+
+        <!-- Allele frequency panel (collapsible) -->
+        <div id="allele-panel" class="hidden">
+          <div id="allele-header">
+            <span>Allele frequencies — G / O / D over time</span>
+            <button id="btn-toggle-allele" class="btn btn-ghost btn-sm" style="margin-left:auto;">Hide</button>
+          </div>
+          <canvas id="allele-canvas"></canvas>
+        </div>
+        <button id="btn-show-allele" class="btn btn-ghost btn-sm stats-show-btn">🔬 Alleles</button>
       </section>
 
       <!-- Right panel: creature detail -->
@@ -194,7 +205,9 @@
                 <div id="fitness-bar-fill"></div>
               </div>
             </div>
+            <div id="fitness-breakdown"></div>
           </div>
+          <div id="crossover-info"></div>
           <div id="genome-display">
             <h3>Genome</h3>
             <div id="genome-parts"></div>

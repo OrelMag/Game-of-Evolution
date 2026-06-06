@@ -10,21 +10,28 @@ export class StatsCollector {
     const avgFitness = fitnesses.reduce((a, b) => a + b, 0) / fitnesses.length;
     const bestFitness = Math.max(...fitnesses);
     const diversity = _sampledDiversity(nodes);
-    this.generations.push({ gen, avgFitness, bestFitness, diversity });
 
-    // Track per-position allele frequencies over alive nodes (fallback to all)
+    // Single pass: compute per-position counts (for drift heatmap) and overall G/O/D totals (for allele chart)
     const sample = nodes.filter(n => n.alive).length > 0 ? nodes.filter(n => n.alive) : nodes;
     const counts = new Float32Array(120 * 3);
+    let gSum = 0, oSum = 0, dSum = 0;
     for (const node of sample) {
       const seq = node.genome.sequence;
       for (let i = 0; i < 120; i++) {
         const c = seq[i];
-        counts[i * 3 + (c === 'G' ? 0 : c === 'O' ? 1 : 2)]++;
+        const ci = c === 'G' ? 0 : c === 'O' ? 1 : 2;
+        counts[i * 3 + ci]++;
+        if (ci === 0) gSum++; else if (ci === 1) oSum++; else dSum++;
       }
     }
     const n = sample.length;
     for (let i = 0; i < counts.length; i++) counts[i] /= n;
     this._posFreqs[gen] = counts;
+
+    const total = n * 120;
+    const alleleFreqs = { g: gSum / total, o: oSum / total, d: dSum / total };
+
+    this.generations.push({ gen, avgFitness, bestFitness, diversity, alleleFreqs });
   }
 
   /**

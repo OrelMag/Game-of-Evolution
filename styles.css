@@ -213,6 +213,37 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 #fitness-bar-track { height: 6px; border-radius: 3px; background: var(--border); width: 100%; overflow: hidden; }
 #fitness-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--green)); transition: width 0.4s; }
 
+/* Per-mode fitness breakdown */
+#fitness-breakdown { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; }
+.fitness-mode-row { display: flex; align-items: center; gap: 6px; font-size: 10px; }
+.fitness-mode-label { color: var(--text-dim); width: 72px; flex-shrink: 0; text-align: right; text-transform: uppercase; letter-spacing: 0.4px; font-size: 9px; }
+.fitness-mode-track { flex: 1; height: 5px; border-radius: 3px; background: var(--border); overflow: hidden; }
+.fitness-mode-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+.fitness-mode-fill.fit-high { background: var(--green); }
+.fitness-mode-fill.fit-mid  { background: var(--orange); }
+.fitness-mode-fill.fit-low  { background: var(--red); }
+.fitness-mode-val { color: var(--text-bright); font-weight: 600; width: 28px; text-align: right; font-size: 10px; }
+
+/* Crossover / recombination display */
+#crossover-info { margin-bottom: 6px; }
+.crossover-badge {
+  display: inline-block; font-size: 10px; font-weight: 600;
+  padding: 2px 8px; border-radius: 10px;
+  background: rgba(167,139,250,0.15); color: var(--purple);
+  border: 1px solid rgba(167,139,250,0.3); margin-bottom: 4px;
+}
+.crossover-legend { font-size: 9px; color: var(--text-dim); margin-bottom: 3px; }
+.crossover-seq {
+  font-family: monospace; font-size: 9px; letter-spacing: 1.5px;
+  word-break: break-all; line-height: 1.7;
+  padding: 4px 6px; background: var(--bg-panel2); border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+.xo-a   { color: var(--accent); }
+.xo-b   { color: var(--orange); }
+.xo-both { color: var(--text-dim); }
+.xo-mut  { color: var(--green); font-weight: 700; }
+
 /* Genome display */
 #genome-display h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-dim); margin-bottom: 6px; }
 #genome-parts { display: flex; flex-direction: column; gap: 3px; }
@@ -224,7 +255,8 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   font-family: monospace; font-size: 10px;
 }
 .genome-part-name { color: var(--text-dim); font-size: 9px; width: 88px; flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.4px; }
-.genome-part-seq { letter-spacing: 2px; }
+.genome-part-seq  { letter-spacing: 2px; }
+.genome-part-ann  { font-size: 9px; margin-left: auto; opacity: 0.75; white-space: nowrap; }
 .g { color: var(--col-g); }
 .o { color: var(--col-o); }
 .d { color: var(--col-d); }
@@ -485,6 +517,23 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   white-space: pre;
 }
 
+/* ── Allele frequency panel ──────────────────────────────────────────────── */
+#allele-panel {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  background: var(--bg-panel);
+  display: flex; flex-direction: column;
+}
+#allele-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 10px;
+  font-size: 10px; color: var(--text-dim); letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
+}
+#allele-canvas {
+  display: block; width: 100%; height: 110px;
+}
+
 /* ── Feature E: Generation scrubber & future-node dimming ─────────────────── */
 #scrubber-row { cursor: default; margin-top: 4px; }
 #scrubber-row input[type="range"] { accent-color: var(--purple); }
@@ -498,8 +547,22 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   background: var(--bg-panel); border: 1px solid var(--border);
   z-index: 2;
 }
-#btn-show-stats { left: calc(50% - 46px); transform: none; }
-#btn-show-drift  { left: calc(50% + 4px);  transform: none; }
+#btn-show-stats  { left: calc(50% - 90px); transform: none; }
+#btn-show-drift  { left: calc(50% - 30px); transform: none; }
+#btn-show-allele { left: calc(50% + 30px); transform: none; }
+
+/* ── Generation narration bar ──────────────────────────────── */
+.generation-narration {
+  padding: 5px 12px;
+  font-size: 11px; color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+  min-height: 24px; flex-shrink: 0;
+  line-height: 1.5;
+}
+.generation-narration:empty { display: none; }
+.generation-narration strong { color: var(--accent); }
+.generation-narration em { color: var(--orange); font-style: normal; }
 
 /* ── Mode tabs (Tree / Trace) ─────────────────────────────── */
 #mode-tabs {

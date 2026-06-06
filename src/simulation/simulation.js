@@ -54,12 +54,12 @@ export class Simulation {
   _makeChildGenome(parent, frontier) {
     if (this.useCrossover && frontier.length >= 2) {
       const mate = _randomMate(frontier, parent);
-      if (mate) return this.mutator.mutateAll(
-        this.mutator.crossover(parent.genome, mate.genome),
-        this.mutationMode
-      );
+      if (mate) return {
+        genome:       this.mutator.mutateAll(this.mutator.crossover(parent.genome, mate.genome), this.mutationMode),
+        secondParent: mate,
+      };
     }
-    return this.mutator.mutateAll(parent.genome, this.mutationMode);
+    return { genome: this.mutator.mutateAll(parent.genome, this.mutationMode), secondParent: null };
   }
 
   /** Run all generations synchronously. Returns root TreeNode. */
@@ -75,11 +75,9 @@ export class Simulation {
         const count = _offspringCount(this.branchingFactor, parent.fitness, avgFit, this.proportionalReproduction);
         for (let i = 0; i < count; i++) {
           if (totalNodes >= MAX_NODES) break;
-          const child = new TreeNode(
-            this._makeChildGenome(parent, activeFrontier),
-            parent,
-            gen + 1
-          );
+          const { genome, secondParent } = this._makeChildGenome(parent, activeFrontier);
+          const child = new TreeNode(genome, parent, gen + 1);
+          child.secondParent = secondParent;
           parent.children.push(child);
           newNodes.push(child);
           totalNodes++;
@@ -92,7 +90,9 @@ export class Simulation {
       if (this.selectionEngine) {
         const allNodes = this.root.flatten();
         for (const node of newNodes) {
-          node.fitness = this.selectionEngine.computeFitness(node, allNodes, gen + 1);
+          const { combined, perMode } = this.selectionEngine.computeFitnessDetailed(node, allNodes, gen + 1);
+          node.fitness          = combined;
+          node.fitnessBreakdown = perMode;
         }
         activeFrontier = this.selectionEngine.applySelection(newNodes, this.selectionStrength, this.effectivePopSize);
       } else {
@@ -126,11 +126,9 @@ export class Simulation {
         const count = _offspringCount(this.branchingFactor, parent.fitness, avgFit, this.proportionalReproduction);
         for (let i = 0; i < count; i++) {
           if (totalNodes >= MAX_NODES) break;
-          const child = new TreeNode(
-            this._makeChildGenome(parent, activeFrontier),
-            parent,
-            gen + 1
-          );
+          const { genome, secondParent } = this._makeChildGenome(parent, activeFrontier);
+          const child = new TreeNode(genome, parent, gen + 1);
+          child.secondParent = secondParent;
           parent.children.push(child);
           newNodes.push(child);
           totalNodes++;
@@ -144,7 +142,9 @@ export class Simulation {
       if (this.selectionEngine) {
         const allNodes = this.root.flatten();
         for (const node of newNodes) {
-          node.fitness = this.selectionEngine.computeFitness(node, allNodes, gen + 1);
+          const { combined, perMode } = this.selectionEngine.computeFitnessDetailed(node, allNodes, gen + 1);
+          node.fitness          = combined;
+          node.fitnessBreakdown = perMode;
         }
       }
 

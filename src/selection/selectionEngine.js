@@ -30,6 +30,25 @@ export class SelectionEngine {
   }
 
   /**
+   * Like computeFitness but also returns a per-mode breakdown for display.
+   * @returns {{ combined: number, perMode: Array<{label:string, score:number}> }}
+   */
+  computeFitnessDetailed(node, allNodes, generation) {
+    if (this.modes.length === 0) return { combined: 1.0, perMode: [] };
+
+    const perMode = [];
+    let combined = 1.0;
+    for (const { mode, strength, label } of this.modes) {
+      if (strength <= 0) continue;
+      const raw     = mode.computeFitness(node.genome, allNodes, generation);
+      const blended = (1.0 - strength) + strength * raw;
+      combined     *= blended;
+      perMode.push({ label: label ?? 'Unknown', score: raw });
+    }
+    return { combined: Math.max(0, Math.min(1, combined)), perMode };
+  }
+
+  /**
    * Mark nodes alive/dead based on fitness, selection strength, and effective
    * population size. Returns the surviving nodes (those that will reproduce).
    *

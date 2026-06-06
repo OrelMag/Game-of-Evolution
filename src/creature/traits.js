@@ -18,6 +18,29 @@ export const PART_NAMES = [
 ];
 
 /**
+ * Per-part phenotype annotations for each dominant allele.
+ * Each entry is [G-dominant label, O-dominant label, D-dominant label].
+ * Used in the UI to make the abstract G/O/D alphabet biologically tangible.
+ */
+export const PART_CODEBOOK = [
+  ['Wide body',       'Tall body',        'Compact body'],      // 0 Body core
+  ['Warm hue',        'Blue/cyan hue',    'Cool purple hue'],   // 1 Body hue
+  ['Dense pattern',   'Large markings',   'Complex pattern'],   // 2 Body pattern
+  ['Large head',      'Elongated head',   'Small head'],        // 3 Head
+  ['Long snout',      'Wide snout',       'Drooped snout'],     // 4 Snout
+  ['Many eyes',       'Large eyes',       'Exotic glow'],       // 5 Eyes
+  ['Wide mouth',      'Upturned mouth',   'Open mouth'],        // 6 Mouth
+  ['Spiky crest',     'Tall crest',       'Multi-crest'],       // 7 Cranial crest
+  ['Long left arm',   'Jointed arm',      'Fin arm'],           // 8 Left forelimb
+  ['Long right arm',  'Jointed arm',      'Fin arm'],           // 9 Right forelimb
+  ['Long left leg',   'Jointed leg',      'Fin leg'],           // 10 Left hindlimb
+  ['Long right leg',  'Jointed leg',      'Fin leg'],           // 11 Right hindlimb
+  ['Complex dorsal',  'Tall dorsal',      'Multi dorsal'],      // 12 Dorsal feature
+  ['Long tail',       'Wide tail',        'Curved tail'],       // 13 Tail
+  ['Warm markings',   'Intense markings', 'Complex markings'],  // 14 Markings
+];
+
+/**
  * Decode a genome into a flat traits object used by all drawing functions.
  * Pure function — no side effects.
  *

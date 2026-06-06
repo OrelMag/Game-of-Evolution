@@ -353,12 +353,12 @@ export class SelectionPanel {
 
     if (this._enabledModes.has('env')) {
       const strength = parseInt(document.getElementById('env-strength').value, 10) / 100;
-      modes.push({ mode: this._envMode, strength });
+      modes.push({ mode: this._envMode, strength, label: 'Environment' });
     }
 
     if (this._enabledModes.has('target') && this._targetMode.target) {
       const strength = parseInt(document.getElementById('target-strength').value, 10) / 100;
-      modes.push({ mode: this._targetMode, strength });
+      modes.push({ mode: this._targetMode, strength, label: 'Target' });
     }
 
     if (this._enabledModes.has('predator')) {
@@ -366,17 +366,17 @@ export class SelectionPanel {
       const predRate = Math.round(0.001 * Math.pow(100, (mv - 1) / 99) * 1000) / 1000;
       predatorMode = new PredatorMode({ mutationRate: predRate, branchingFactor });
       const strength = parseInt(document.getElementById('pred-strength').value, 10) / 100;
-      modes.push({ mode: predatorMode, strength });
+      modes.push({ mode: predatorMode, strength, label: 'Predator' });
     }
 
     if (this._enabledModes.has('resource')) {
       const strength = parseInt(document.getElementById('resource-strength').value, 10) / 100;
-      modes.push({ mode: this._resourceMode, strength });
+      modes.push({ mode: this._resourceMode, strength, label: 'Resources' });
     }
 
     if (this._enabledModes.has('epistasis')) {
       const strength = parseInt(document.getElementById('epistasis-strength').value, 10) / 100;
-      modes.push({ mode: this._epistasisMode, strength });
+      modes.push({ mode: this._epistasisMode, strength, label: 'Epistasis' });
     }
 
     return { engine: new SelectionEngine(modes), predatorMode };

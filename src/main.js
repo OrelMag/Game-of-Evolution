@@ -12,6 +12,8 @@ import { VotingOverlay } from './ui/votingOverlay.js';
 import { DriftView } from './ui/driftView.js';
 import { LineageView } from './ui/lineageView.js';
 import { HabitatBackground } from './ui/habitatBackground.js';
+import { GenerationNarrator } from './ui/generationNarrator.js';
+import { AlleleFreqView } from './ui/alleleFreqView.js';
 
 // Fisher-Yates random subsampling (mirrors the helper in selectionEngine.js)
 function _wfSample(arr, n) {
@@ -107,6 +109,7 @@ const creaturePanel = new CreaturePanel({
 
 const statsView     = new StatsView('stats-canvas');
 const driftView     = new DriftView('drift-canvas');
+const alleleFreqView = new AlleleFreqView('allele-canvas');
 const votingOverlay = new VotingOverlay();
 
 let _traceState        = 'idle'; // 'idle'|'running'|'done'
@@ -139,6 +142,7 @@ const lineageView = new LineageView({
 
 let _maxGen = 0;
 const _speciationEngine = new SpeciationEngine();
+const _narrator = new GenerationNarrator('generation-narration');
 
 // ── Playback ──────────────────────────────────────────────────────────────
 
@@ -164,6 +168,7 @@ function startPlayback({ generations, branchingFactor, mutationRate }) {
   _artificialMode    = selectionPanel.isPlayerMode;
   _statsCollector    = new StatsCollector();
   statsView.update([]);
+  _narrator.clear();
 
   const sim = new Simulation({
     generations,
@@ -237,6 +242,7 @@ function _runStep() {
   _statsCollector.record(generation, newNodes);
   statsView.update(_statsCollector.generations);
   driftView.updateLatest(_statsCollector);
+  alleleFreqView.update(_statsCollector);
 
   // Player voting mode — async, does not auto-advance
   if (_artificialMode) {
@@ -272,6 +278,15 @@ function _runStep() {
   setTimeout(() => {
     preyTreeView.refreshNodes(newNodes);
     if (predatorRoot) predTreeView.render(predatorRoot);
+
+    const gens = _statsCollector.generations;
+    _narrator.update({
+      generation,
+      newNodes,
+      survivors:  autoSurvivors,
+      prevStats:  gens[gens.length - 2] ?? null,
+      currStats:  gens[gens.length - 1] ?? null,
+    });
 
     _stepInProgress = false;
 
@@ -350,6 +365,18 @@ function _toggleDrift() {
 }
 document.getElementById('btn-toggle-drift')?.addEventListener('click', _toggleDrift);
 document.getElementById('btn-show-drift')?.addEventListener('click', _toggleDrift);
+
+// ── Allele frequency toggle ───────────────────────────────────────────────
+function _toggleAllele() {
+  const panel   = document.getElementById('allele-panel');
+  const showBtn = document.getElementById('btn-show-allele');
+  if (!panel) return;
+  const justHid = panel.classList.toggle('hidden');
+  if (showBtn) showBtn.classList.toggle('hidden', !justHid);
+  if (!justHid) alleleFreqView.update(_statsCollector);
+}
+document.getElementById('btn-toggle-allele')?.addEventListener('click', _toggleAllele);
+document.getElementById('btn-show-allele')?.addEventListener('click', _toggleAllele);
 
 // ── MRCA finder ───────────────────────────────────────────────────────────
 function handleFindMRCA(nodeA, nodeB) {
@@ -457,16 +484,25 @@ function _wrapWithPredator(engine, predatorMode) {
   let lastGen = -1;
   let lastPreyFrontier = [];
 
+  function _advanceIfNeeded(generation) {
+    if (generation !== lastGen) {
+      predatorMode.stepPredator(generation, lastPreyFrontier);
+      lastGen = generation;
+      lastPreyFrontier = [];
+    }
+  }
+
   return {
     modes: engine.modes,
     computeFitness(node, allNodes, generation) {
-      if (generation !== lastGen) {
-        predatorMode.stepPredator(generation, lastPreyFrontier);
-        lastGen = generation;
-        lastPreyFrontier = [];
-      }
+      _advanceIfNeeded(generation);
       lastPreyFrontier.push(node);
       return engine.computeFitness(node, allNodes, generation);
+    },
+    computeFitnessDetailed(node, allNodes, generation) {
+      _advanceIfNeeded(generation);
+      lastPreyFrontier.push(node);
+      return engine.computeFitnessDetailed(node, allNodes, generation);
     },
     applySelection(nodes, strength) {
       return engine.applySelection(nodes, strength);
