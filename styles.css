@@ -282,7 +282,24 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .node-ring.selected { stroke: var(--accent); stroke-width: 3.5; }
 .node-ring.predator-ring { stroke: var(--red); }
 
-.node-dead-overlay { fill: rgba(10, 12, 20, 0.65); pointer-events: none; }
+@keyframes nodeDeadFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.node-dead-overlay {
+  fill: rgba(10, 12, 20, 0.65);
+  pointer-events: none;
+  animation: nodeDeadFade 0.6s ease-out forwards;
+}
+
+@keyframes speciationPulse {
+  0%   { stroke-width: 3;  opacity: 0.85; }
+  40%  { stroke-width: 9;  opacity: 1; }
+  100% { stroke-width: 3;  opacity: 0.85; }
+}
+.just-speciated .species-ring {
+  animation: speciationPulse 0.8s ease-out;
+}
 
 /* ── Hint / utility ───────────────────────────────────────────────────── */
 .hint { font-size: 11px; color: var(--text-dim); }

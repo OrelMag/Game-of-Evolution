@@ -66,7 +66,7 @@ export function drawSnout(ctx, traits, layout) {
   ctx.restore();
 }
 
-export function drawEyes(ctx, traits, layout) {
+export function drawEyes(ctx, traits, layout, time = null) {
   const { eyes: e } = traits;
   const { head: lh, scale } = layout;
   const { cx, cy, w, hh } = lh;
@@ -74,8 +74,22 @@ export function drawEyes(ctx, traits, layout) {
   const positions = _eyePositions(e.count, cx, cy - hh * 0.1, w, hh, e.spread);
   const r = e.radius * scale;
 
+  // Blink: genome-seeded period so each species blinks at its own rhythm (3.8–5.8s)
+  let blinkYScale = 1;
+  if (time !== null) {
+    const blinkPeriod = 3.8 + (e.glowHue % 100) / 50;
+    const phase = time % blinkPeriod;
+    const blinkFactor = phase < 0.12 ? Math.sin((phase / 0.12) * Math.PI) : 0;
+    blinkYScale = 1 - blinkFactor * 0.9;
+  }
+
   for (const { x, y } of positions) {
     ctx.save();
+
+    // Squash Y-axis at the eye centre to simulate closing
+    ctx.translate(x, y);
+    ctx.scale(1, blinkYScale);
+    ctx.translate(-x, -y);
 
     // Glow
     ctx.shadowColor = `hsl(${e.glowHue}, 100%, 65%)`;

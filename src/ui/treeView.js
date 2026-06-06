@@ -70,7 +70,7 @@ export class TreeView {
 
     // Append new nodes with enter animation
     for (const node of newNodes) {
-      const g = this._drawNode(node);
+      const g = this._drawNode(node, true);
       if (g) g.classList.add('node-entering');
     }
 
@@ -227,7 +227,7 @@ export class TreeView {
   // ── Private ──────────────────────────────────────────────────────────
 
   /** Draws and appends a node group. Returns the group element. */
-  _drawNode(node) {
+  _drawNode(node, isNew = false) {
     const pos = this._positions.get(node.id);
     if (!pos) return null;
     const { x, y } = pos;
@@ -306,6 +306,14 @@ export class TreeView {
     });
 
     this.nodesGroup.appendChild(g);
+
+    // Speciation pulse: new node whose species differs from its parent's
+    if (isNew && node.speciesId != null && node.parent?.speciesId != null
+        && node.speciesId !== node.parent.speciesId) {
+      g.classList.add('just-speciated');
+      setTimeout(() => g.classList.remove('just-speciated'), 800);
+    }
+
     return g;
   }
 

@@ -2,7 +2,7 @@
  * Draws the tail and dorsal feature.
  */
 
-export function drawTail(ctx, traits, layout) {
+export function drawTail(ctx, traits, layout, time = null) {
   const { body: b, tail: t } = traits;
   if (t.length < 4) return;
 
@@ -12,7 +12,7 @@ export function drawTail(ctx, traits, layout) {
   const startX = cx;
   const startY = cy + h / 2 - 2 * scale;
   const totalLen = t.length * scale;
-  const curvature = t.curvature;
+  const curvature = t.curvature + (time !== null ? 0.12 * Math.sin(time * Math.PI * 2 / 2.5) : 0);
 
   // Control point offset to make the tail curve
   const cpX = startX + curvature * totalLen * 0.7;

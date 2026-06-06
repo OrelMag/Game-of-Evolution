@@ -11,12 +11,12 @@ const REF_H = 390;
 
 export class CreatureRenderer {
   /** Draw a genome onto the given canvas element. */
-  render(genome, canvas) {
+  render(genome, canvas, time = null) {
     const traits = decodeTraits(genome);
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const layout = computeLayout(traits, canvas.width, canvas.height);
-    _draw(ctx, traits, layout);
+    _draw(ctx, traits, layout, true, time);
   }
 
   /**
@@ -70,16 +70,16 @@ function computeLayout(traits, W, H) {
 
 // ── Draw order: back → front ──────────────────────────────────────────────
 
-function _draw(ctx, traits, layout, highDetail = true) {
-  drawTail(ctx, traits, layout);
+function _draw(ctx, traits, layout, highDetail = true, time = null) {
+  drawTail(ctx, traits, layout, time);
   drawLimbs(ctx, traits, layout, 'hind');
   drawDorsal(ctx, traits, layout);
-  drawBody(ctx, traits, layout);
+  drawBody(ctx, traits, layout, time);
   drawLimbs(ctx, traits, layout, 'fore');
   drawHead(ctx, traits, layout);
   drawSnout(ctx, traits, layout);
-  drawEyes(ctx, traits, layout);
+  drawEyes(ctx, traits, layout, time);
   drawMouth(ctx, traits, layout);
   drawCrest(ctx, traits, layout);
-  if (highDetail) drawMarkings(ctx, traits, layout);
+  if (highDetail) drawMarkings(ctx, traits, layout, time);
 }

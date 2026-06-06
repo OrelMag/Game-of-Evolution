@@ -4,7 +4,7 @@
  * @param {object} traits
  * @param {object} layout
  */
-export function drawBody(ctx, traits, layout) {
+export function drawBody(ctx, traits, layout, time = null) {
   const { body: b, head } = traits;
   const { body: lb, scale } = layout;
   const { cx, cy, w, h } = lb;
@@ -22,6 +22,15 @@ export function drawBody(ctx, traits, layout) {
   ctx.closePath();
   ctx.fillStyle = `hsl(${b.hue}, ${b.saturation}%, ${b.lightness + 3}%)`;
   ctx.fill();
+
+  // Breathing: gently scale the body ±2.5% on a 3s cycle
+  if (time !== null) {
+    const s = 1 + 0.025 * Math.sin(time * Math.PI * 2 / 3);
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(s, s);
+    ctx.translate(-cx, -cy);
+  }
 
   // Main body with radial gradient
   ctx.save();
@@ -59,6 +68,8 @@ export function drawBody(ctx, traits, layout) {
     _drawPattern(ctx, b, cx, cy, w, h, scale);
     ctx.restore();
   }
+
+  if (time !== null) ctx.restore();
 }
 
 function _drawPattern(ctx, b, cx, cy, w, h, scale) {
