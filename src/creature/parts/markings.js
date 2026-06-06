@@ -2,16 +2,19 @@
  * Draws bioluminescent markings as an overlay on the creature.
  * Skipped when intensity is negligible or type is 0.
  */
-export function drawMarkings(ctx, traits, layout) {
+export function drawMarkings(ctx, traits, layout, time = null) {
   const { markings: m, body: b } = traits;
   if (m.type === 0 || m.intensity < 0.05) return;
 
   const { body: lb, head: lh, scale } = layout;
 
+  // Glow pulse: breathe intensity ±15% on a 2s sine cycle
+  const intensity = m.intensity * (time !== null ? 0.85 + 0.15 * Math.sin(time * Math.PI * 2 / 2) : 1);
+
   ctx.save();
   ctx.globalCompositeOperation = 'screen';
 
-  const color = `hsla(${m.hue}, 100%, 65%, ${m.intensity})`;
+  const color = `hsla(${m.hue}, 100%, 65%, ${intensity})`;
   ctx.shadowColor = `hsl(${m.hue}, 100%, 65%)`;
   ctx.shadowBlur = 12 * scale;
 

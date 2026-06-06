@@ -13,6 +13,7 @@ export class CreaturePanel {
     this._currentNode  = null;
     this._compareNodeA = null;
     this._compareNodeB = null;
+    this._animFrame    = null;
 
     this._canvas        = document.getElementById('creature-canvas');
     this._detail        = document.getElementById('creature-detail');
@@ -53,7 +54,7 @@ export class CreaturePanel {
     this._detail.classList.remove('hidden');
     this._empty.classList.add('hidden');
 
-    this._renderer.render(node.genome, this._canvas);
+    this._startAnim(node.genome);
 
     this._metaGen.textContent     = `Gen ${node.generation}`;
     const fitPct = (node.fitness * 100).toFixed(1) + '%';
@@ -70,12 +71,29 @@ export class CreaturePanel {
     this._renderGenome(node.genome);
   }
 
+  _startAnim(genome) {
+    this._stopAnim();
+    const loop = (ts) => {
+      this._renderer.render(genome, this._canvas, ts / 1000);
+      this._animFrame = requestAnimationFrame(loop);
+    };
+    this._animFrame = requestAnimationFrame(loop);
+  }
+
+  _stopAnim() {
+    if (this._animFrame !== null) {
+      cancelAnimationFrame(this._animFrame);
+      this._animFrame = null;
+    }
+  }
+
   showComparePrompt() {
     this._btnCompare.textContent = 'Cancel';
     this._comparePrompt.classList.remove('hidden');
   }
 
   showCompare(nodeA, nodeB) {
+    this._stopAnim();
     this._compareNodeA = nodeA;
     this._compareNodeB = nodeB;
     this._detail.classList.add('hidden');
@@ -122,6 +140,7 @@ export class CreaturePanel {
     if (this._currentNode) {
       this._detail.classList.remove('hidden');
       this._empty.classList.add('hidden');
+      this._startAnim(this._currentNode.genome);
     }
   }
 
