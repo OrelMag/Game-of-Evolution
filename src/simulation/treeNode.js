@@ -14,6 +14,12 @@ export class TreeNode {
     this.children = [];
     this.generation = generation;
 
+    // Population dynamics (overlapping generations): an individual persists as
+    // the same node across ticks. `generation` is birth time; `age` counts the
+    // ticks it has survived since.
+    this.age       = 0;
+    this.bornTick  = generation;
+
     // Set by SelectionEngine after each generation
     this.fitness          = 1.0;
     this.alive            = true;    // false = selected against (shown grey in tree)

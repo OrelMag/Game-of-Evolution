@@ -1,6 +1,7 @@
 import { Genome } from './genome/genome.js';
 import { Simulation } from './simulation/simulation.js';
 import { TreeNode } from './simulation/treeNode.js';
+import { PopulationDynamics } from './simulation/populationDynamics.js';
 import { StatsCollector } from './simulation/statsCollector.js';
 import { SpeciationEngine } from './simulation/speciationEngine.js';
 import { ControlsPanel } from './ui/controls.js';
@@ -49,6 +50,7 @@ let _currentEffPopSize    = Infinity;
 let _artificialMode       = false;
 let _statsCollector       = new StatsCollector();
 let _infiniteMaxSurvivors = null; // non-null when infinite mode is active
+let _populationDynamics   = null; // non-null when population dynamics is enabled
 
 const SELECTION_DELAY_MS = 280; // wait after showing nodes before marking dead ones
 
@@ -171,6 +173,14 @@ function startPlayback({ generations, branchingFactor, mutationRate }) {
   _currentEffPopSize    = selectionPanel.effectivePopSize;
   _artificialMode       = selectionPanel.isPlayerMode;
   _infiniteMaxSurvivors = controls.infinite ? controls.maxSurvivors : null;
+  _populationDynamics   = controls.populationDynamicsEnabled
+    ? new PopulationDynamics({
+        carryingCapacity: controls.carryingCapacity,
+        longevity:        controls.longevity,
+        fecundity:        controls.fecundity,
+      })
+    : null;
+  statsView.setCarryingCapacity(_populationDynamics ? controls.carryingCapacity : null);
   _statsCollector       = new StatsCollector();
   statsView.update([]);
   _narrator.clear();
@@ -190,6 +200,7 @@ function startPlayback({ generations, branchingFactor, mutationRate }) {
     inversionRate:            controls.inversionRate,
     proportionalReproduction: controls.proportionalReproduction,
     effectivePopSize:         _currentEffPopSize,
+    populationDynamics:       _populationDynamics,
   });
 
   // init() must run after new Simulation() so the ID counter is reset first,
@@ -242,6 +253,54 @@ function _runStep() {
 
   const { generation, newNodes } = value;
   if (generation > _maxGen) _maxGen = generation;
+
+  // ── Population dynamics: overlapping generations + logistic regulation ──
+  // `value.combined` is the whole living population (aged adults + newborns).
+  if (_populationDynamics) {
+    const combined = value.combined ?? newNodes;
+
+    // Drop SVG nodes for lineages pruned last tick before re-laying out the tree.
+    if (value.prunedIds?.length) preyTreeView.removeNodes(value.prunedIds);
+
+    preyTreeView.addGeneration(currentRoot, newNodes);
+    if (preyTreeView.showSpeciesColors) _speciationEngine.assignSpecies(newNodes);
+
+    // Density-dependent, fitness- and age-weighted mortality over the living pop.
+    const survivors = _populationDynamics.regulate(combined, _currentStrength);
+
+    // Record the standing (surviving) population so the chart shows the logistic curve.
+    _statsCollector.record(generation, survivors);
+    statsView.update(_statsCollector.generations);
+    driftView.updateLatest(_statsCollector);
+    alleleFreqView.update(_statsCollector);
+
+    _pendingSurvivors = survivors;
+
+    const hint = document.getElementById('node-count-hint');
+    if (hint) { hint.textContent = `Gen ${generation} · pop ${survivors.length}`; hint.className = 'hint'; }
+
+    setTimeout(() => {
+      // Reveal deaths (offspring and senescent adults turn grey).
+      preyTreeView.refreshNodes(combined);
+      if (predatorRoot) predTreeView.render(predatorRoot);
+
+      const gens = _statsCollector.generations;
+      _narrator.update({
+        generation,
+        newNodes,
+        survivors,
+        prevStats: gens[gens.length - 2] ?? null,
+        currStats: gens[gens.length - 1] ?? null,
+      });
+
+      _stepInProgress = false;
+      if (_playbackState === 'playing') {
+        const delay = Math.max(50, controls.playbackSpeed - SELECTION_DELAY_MS);
+        _playbackTimer = setTimeout(_runStep, delay);
+      }
+    }, SELECTION_DELAY_MS);
+    return;
+  }
 
   // Show new nodes (all alive initially — selection result shown after a brief delay)
   preyTreeView.addGeneration(currentRoot, newNodes);
