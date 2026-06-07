@@ -94,6 +94,14 @@ export class TreeView {
     if (this._generationCutoff !== null) this.setGenerationCutoff(this._generationCutoff);
   }
 
+  /** Remove node groups by id (used when dead lineages are pruned). */
+  removeNodes(ids) {
+    for (const id of ids) {
+      const g = this.svg.querySelector(`[data-id="${id}"]`);
+      if (g) g.remove();
+    }
+  }
+
   _reapplyCompareMarks() {
     if (this._compareAId !== null) {
       const ring = this.svg.querySelector(`[data-id="${this._compareAId}"] .node-ring`);

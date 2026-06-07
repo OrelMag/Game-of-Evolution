@@ -31,7 +31,12 @@ export class StatsCollector {
     const total = n * 120;
     const alleleFreqs = { g: gSum / total, o: oSum / total, d: dSum / total };
 
-    this.generations.push({ gen, avgFitness, bestFitness, diversity, alleleFreqs });
+    // Population-dynamics metrics: standing population size and mean age.
+    // `nodes` is the living population when PD is active, the new cohort otherwise.
+    const population = nodes.length;
+    const meanAge    = nodes.reduce((a, b) => a + (b.age ?? 0), 0) / population;
+
+    this.generations.push({ gen, avgFitness, bestFitness, diversity, alleleFreqs, population, meanAge });
   }
 
   /**

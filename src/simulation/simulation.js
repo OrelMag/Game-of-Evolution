@@ -19,6 +19,8 @@ export class Simulation {
    * @param {number}  [opts.inversionRate]           0–1 per-genome probability of a part inversion
    * @param {boolean} [opts.proportionalReproduction] fitter parents produce more offspring
    * @param {number}  [opts.effectivePopSize]        Wright-Fisher drift cap (Infinity = off)
+   * @param {import('./populationDynamics.js').PopulationDynamics} [opts.populationDynamics]
+   *   when set, switches to overlapping-generations logistic regulation
    * @param {import('./statsCollector.js').StatsCollector} [opts.statsCollector]
    */
   constructor({
@@ -34,6 +36,7 @@ export class Simulation {
     inversionRate            = 0,
     proportionalReproduction = false,
     effectivePopSize         = Infinity,
+    populationDynamics       = null,
     statsCollector           = null,
   }) {
     this.generations             = generations;
@@ -45,6 +48,7 @@ export class Simulation {
     this.mutationMode            = mutationMode;
     this.proportionalReproduction = proportionalReproduction;
     this.effectivePopSize        = effectivePopSize;
+    this.populationDynamics      = populationDynamics;
     this.statsCollector          = statsCollector;
 
     TreeNode.resetIdCounter();
@@ -115,6 +119,11 @@ export class Simulation {
    * to happen between generations without blocking.
    */
   *runGenerator() {
+    if (this.populationDynamics) {
+      yield* this._runGeneratorPopDynamics();
+      return;
+    }
+
     let activeFrontier = [this.root];
     let totalNodes = 1;
 
@@ -167,6 +176,77 @@ export class Simulation {
     }
   }
 
+  /**
+   * Overlapping-generations generator (population dynamics enabled).
+   *
+   * Each tick: age the living adults, let mature adults reproduce, score the
+   * new offspring, then yield { generation, newNodes, combined } where
+   * `combined` is the whole living population (aged adults + newborns). The
+   * caller applies density-dependent mortality via PopulationDynamics.regulate
+   * and passes the survivors back through generator.next(survivors); those
+   * survivors become the next tick's adults.
+   */
+  *_runGeneratorPopDynamics() {
+    const pd = this.populationDynamics;
+    let livingAdults = [this.root];
+    let prunedIds = [];
+
+    for (let gen = 0; gen < this.generations; gen++) {
+      const tick = gen + 1;
+
+      // Live node budget: pruning keeps the genealogy near coalescent size, so
+      // count the *current* tree rather than cumulative births. MAX_NODES then
+      // only bites if a single living population would itself exceed the cap.
+      let totalNodes = this.root.flatten().length;
+
+      // Age the survivors carried over from the previous tick.
+      for (const adult of livingAdults) adult.age++;
+
+      // Mature adults reproduce.
+      const offspring = [];
+      for (const parent of livingAdults) {
+        if (!pd.isMature(parent.age)) continue;
+        for (let i = 0; i < pd.fecundity; i++) {
+          if (totalNodes >= MAX_NODES) break;
+          const { genome, secondParent } = this._makeChildGenome(parent, livingAdults);
+          const child = new TreeNode(genome, parent, tick);
+          child.secondParent = secondParent;
+          parent.children.push(child);
+          offspring.push(child);
+          totalNodes++;
+        }
+        if (totalNodes >= MAX_NODES) break;
+      }
+
+      // Score fitness for the newborns (adults keep their existing fitness).
+      if (this.selectionEngine && offspring.length > 0) {
+        const allNodes = this.root.flatten();
+        for (const node of offspring) {
+          const { combined, perMode } = this.selectionEngine.computeFitnessDetailed(node, allNodes, tick);
+          node.fitness          = combined;
+          node.fitnessBreakdown = perMode;
+        }
+      }
+
+      const combined = [...livingAdults, ...offspring];
+
+      // Yield to caller; `prunedIds` lets the UI drop the SVG nodes removed last
+      // tick. Receive optional override survivors (caller-applied regulation).
+      const overrideSurvivors = yield { generation: tick, newNodes: offspring, combined, prunedIds };
+
+      livingAdults = overrideSurvivors != null
+        ? overrideSurvivors
+        : pd.regulate(combined, this.selectionStrength);
+
+      this.statsCollector?.record(tick, livingAdults);
+
+      // Prune dead lineages with no living descendants so the tree stays bounded.
+      prunedIds = _pruneDeadLineages(this.root);
+
+      if (livingAdults.length === 0) break;
+    }
+  }
+
   static estimateNodeCount(generations, branchingFactor) {
     let total = 1, level = 1;
     for (let g = 0; g < generations; g++) {
@@ -189,6 +269,43 @@ function _offspringCount(branchingFactor, fitness, avgFitness, proportional) {
   if (!proportional || avgFitness <= 0) return branchingFactor;
   const target = branchingFactor * (fitness ?? 1) / avgFitness;
   return Math.floor(target) + (Math.random() < (target % 1) ? 1 : 0);
+}
+
+/**
+ * Remove dead nodes whose entire subtree is dead (no living descendant),
+ * detaching them from the genealogy. Keeps the root and any node on a path to a
+ * living individual — i.e. the pruned phylogeny of the current population.
+ * Returns the ids of the removed nodes so the UI can drop their SVG elements.
+ */
+function _pruneDeadLineages(root) {
+  const all  = root.flatten();           // BFS order (parents before children)
+  const keep = new Set();
+  // Reverse BFS ⇒ children decided before their parent.
+  for (let i = all.length - 1; i >= 0; i--) {
+    const n = all[i];
+    if (n === root || n.alive || n.children.some(c => keep.has(c))) keep.add(n);
+  }
+
+  const removed = [];
+  for (const n of keep) {
+    if (n.children.length === 0) continue;
+    const kept = [];
+    for (const c of n.children) {
+      if (keep.has(c)) kept.push(c);
+      else _collectSubtreeIds(c, removed);
+    }
+    if (kept.length !== n.children.length) n.children = kept;
+  }
+  return removed;
+}
+
+function _collectSubtreeIds(node, out) {
+  const queue = [node];
+  while (queue.length) {
+    const n = queue.shift();
+    out.push(n.id);
+    for (const c of n.children) queue.push(c);
+  }
 }
 
 function _randomMate(frontier, exclude) {
