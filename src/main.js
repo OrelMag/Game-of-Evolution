@@ -201,6 +201,8 @@ function startPlayback({ generations, branchingFactor, mutationRate }) {
     proportionalReproduction: controls.proportionalReproduction,
     effectivePopSize:         _currentEffPopSize,
     populationDynamics:       _populationDynamics,
+    mutationBias:             controls.mutationBias,
+    sexualSelection:          controls.sexualSelection,
   });
 
   // init() must run after new Simulation() so the ID counter is reset first,
@@ -646,6 +648,7 @@ document.getElementById('btn-run-trace')?.addEventListener('click', () => {
     mutationMode:      controls.mutationMode,
     transpositionRate: controls.transpositionRate,
     inversionRate:     controls.inversionRate,
+    mutationBias:      controls.mutationBias,
     selectionEngine:   engine.modes?.length > 0 ? engine : null,
   });
 });

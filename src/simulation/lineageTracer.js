@@ -12,6 +12,7 @@ export class LineageTracer {
     inversionRate   = 0,
     sampleEvery     = 1,
     selectionEngine = null,
+    mutationBias    = null,
   }) {
     this.startGenome      = startGenome;
     this.generations      = generations;
@@ -19,7 +20,11 @@ export class LineageTracer {
     this.sampleEvery      = Math.max(1, sampleEvery);
     this.selectionEngine  = selectionEngine;
 
-    this._mutator     = new Mutator({ mutationRate, transpositionRate, inversionRate });
+    this._mutator     = new Mutator({
+      mutationRate, transpositionRate, inversionRate,
+      biasAllele:   mutationBias?.allele ?? null,
+      biasStrength: mutationBias?.strength ?? 0,
+    });
     this._snapshots   = [];
     this._stopped     = false;
     this._done        = false;

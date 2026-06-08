@@ -30,14 +30,14 @@ export class LineageView {
   }
 
   startTrace({ startGenome, generations, snapshotCount, mutationRate, mutationMode,
-               transpositionRate, inversionRate, selectionEngine }) {
+               transpositionRate, inversionRate, selectionEngine, mutationBias }) {
     this._cancelRaf();
 
     const sampleEvery = Math.max(1, Math.floor(generations / Math.max(1, snapshotCount)));
 
     this._tracer = new LineageTracer({
       startGenome, generations, mutationRate, mutationMode,
-      transpositionRate, inversionRate, sampleEvery, selectionEngine,
+      transpositionRate, inversionRate, sampleEvery, selectionEngine, mutationBias,
     });
 
     this._generator     = this._tracer.runGenerator(1000);
