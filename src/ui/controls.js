@@ -27,7 +27,11 @@ export class ControlsPanel {
     this._btnRandomize = document.getElementById('btn-randomize');
     this._transpositionSlider = document.getElementById('ctrl-transposition');
     this._inversionSlider     = document.getElementById('ctrl-inversion');
+    this._mutBiasSelect       = document.getElementById('ctrl-mut-bias');
+    this._mutBiasStrength     = document.getElementById('ctrl-mut-bias-strength');
     this._chkCrossover        = document.getElementById('ctrl-crossover');
+    this._chkSexualSelection  = document.getElementById('ctrl-sexual-selection');
+    this._displayTraitSelect  = document.getElementById('ctrl-display-trait');
     this._scrubberRow  = document.getElementById('scrubber-row');
     this._scrubber     = document.getElementById('ctrl-scrubber');
     this._scrubberVal  = document.getElementById('val-scrubber');
@@ -60,6 +64,19 @@ export class ControlsPanel {
   get mutationMode()        { return this._mutModeSelect?.value ?? 'point'; }
   get transpositionRate()   { return parseInt(this._transpositionSlider?.value ?? 0, 10) / 100; }
   get inversionRate()       { return parseInt(this._inversionSlider?.value ?? 0, 10) / 100; }
+
+  get mutationBias() {
+    const allele = this._mutBiasSelect?.value ?? 'none';
+    if (allele === 'none') return null;
+    return { allele, strength: parseInt(this._mutBiasStrength?.value ?? '50', 10) / 100 };
+  }
+
+  get sexualSelection() {
+    return {
+      enabled: this._chkSexualSelection?.checked ?? false,
+      trait:   this._displayTraitSelect?.value ?? 'crest',
+    };
+  }
   get populationDynamicsEnabled() { return this._popdynCheck?.checked ?? false; }
   get carryingCapacity()    { return parseInt(this._carryingSlider?.value ?? '60', 10); }
   get longevity()           { return parseInt(this._longevitySlider?.value ?? '8', 10); }
@@ -114,6 +131,19 @@ export class ControlsPanel {
     });
     this._inversionSlider?.addEventListener('input', e => {
       document.getElementById('val-inversion').textContent = e.target.value + '%';
+    });
+
+    this._mutBiasSelect?.addEventListener('change', e => {
+      const row = document.getElementById('row-mut-bias-strength');
+      if (row) row.style.display = e.target.value === 'none' ? 'none' : '';
+    });
+    this._mutBiasStrength?.addEventListener('input', e => {
+      document.getElementById('val-mut-bias-strength').textContent = e.target.value + '%';
+    });
+
+    this._chkSexualSelection?.addEventListener('change', e => {
+      const row = document.getElementById('row-display-trait');
+      if (row) row.style.display = e.target.checked ? '' : 'none';
     });
 
     this._infiniteCheck?.addEventListener('change', () => {
@@ -198,8 +228,20 @@ export class ControlsPanel {
     add(this._inversionSlider,
       'Chance a genome segment is flipped\nend-to-end each generation.\nPreserves characters but changes\nwhich body part they encode.');
 
+    add(this._mutBiasSelect,
+      'Non-neutral mutation. Substitutions favour\nthe chosen allele, so genome composition\ndrifts toward it even without selection.\nWatch the effect in the Alleles chart.');
+
+    add(this._mutBiasStrength,
+      'How strongly mutations favour the biased\nallele. 0% = unbiased; 100% = strong pull.');
+
     add(this._chkCrossover,
       'Two-parent recombination: offspring\ninherits left segment from one parent\nand right from another.\nProduces the ✕ badge on tree nodes.');
+
+    add(this._chkSexualSelection,
+      'Mate choice favours a showy display trait\ninstead of viability. Can drive runaway\nornament exaggeration. Requires Sexual\nreproduction. Pair with Metabolism for a\ncostly-handicap dynamic.');
+
+    add(this._displayTraitSelect,
+      'The ornament that makes a mate attractive.\nShowier individuals are chosen more often,\nso the trait inflates over generations.');
 
     add(document.getElementById('ctrl-prop-reproduction'),
       'Fitter creatures produce more children;\nweaker ones produce fewer (min 1).\nAmplifies selection without\nexplicitly culling lineages.');

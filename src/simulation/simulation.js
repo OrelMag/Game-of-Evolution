@@ -38,10 +38,17 @@ export class Simulation {
     effectivePopSize         = Infinity,
     populationDynamics       = null,
     statsCollector           = null,
+    mutationBias             = null,
+    sexualSelection          = null,
   }) {
     this.generations             = generations;
     this.branchingFactor         = branchingFactor;
-    this.mutator                 = new Mutator({ mutationRate, transpositionRate, inversionRate });
+    this.mutator                 = new Mutator({
+      mutationRate, transpositionRate, inversionRate,
+      biasAllele:   mutationBias?.allele ?? null,
+      biasStrength: mutationBias?.strength ?? 0,
+    });
+    this.sexualSelection         = sexualSelection;
     this.selectionEngine         = selectionEngine;
     this.selectionStrength       = selectionStrength;
     this.useCrossover            = useCrossover;
@@ -57,13 +64,43 @@ export class Simulation {
 
   _makeChildGenome(parent, frontier) {
     if (this.useCrossover && frontier.length >= 2) {
-      const mate = _randomMate(frontier, parent);
+      const mate = this._pickMate(frontier, parent);
       if (mate) return {
         genome:       this.mutator.mutateAll(this.mutator.crossover(parent.genome, mate.genome), this.mutationMode),
         secondParent: mate,
       };
     }
     return { genome: this.mutator.mutateAll(parent.genome, this.mutationMode), secondParent: null };
+  }
+
+  // Mate choice. With sexual selection on, candidates are weighted by a display
+  // ("ornament") trait, driving runaway exaggeration; otherwise by viability
+  // fitness (roulette wheel). Returns null when no candidate exists.
+  _pickMate(frontier, parent) {
+    if (!this.sexualSelection?.enabled) return _randomMate(frontier, parent);
+
+    const candidates = frontier.filter(n => n !== parent);
+    if (candidates.length === 0) return null;
+    const weights = candidates.map(n => 0.05 + this._displayValue(n.genome));
+    const total = weights.reduce((s, w) => s + w, 0);
+    let r = Math.random() * total;
+    for (let i = 0; i < candidates.length; i++) {
+      r -= weights[i];
+      if (r <= 0) return candidates[i];
+    }
+    return candidates[candidates.length - 1];
+  }
+
+  // Magnitude of the selected ornament trait, 0–1. Computed from genome ratios
+  // only (no creature/ import) to respect module boundaries.
+  _displayValue(genome) {
+    switch (this.sexualSelection?.trait) {
+      case 'markings': return genome.decode(14).on; // bioluminescent intensity
+      case 'tail':     return genome.decode(13).gn; // tail length
+      case 'body':     return genome.decode(0).gn;  // body size
+      case 'crest':
+      default:         return genome.decode(7).on;  // crest height
+    }
   }
 
   /** Run all generations synchronously. Returns root TreeNode. */

@@ -89,9 +89,40 @@
             <span class="value-display" id="val-inversion">0%</span>
           </label>
 
+          <label class="control-row">
+            <span class="label-text">Mutation bias</span>
+            <select id="ctrl-mut-bias" class="speed-select">
+              <option value="none" selected>Unbiased</option>
+              <option value="G">Toward G</option>
+              <option value="O">Toward O</option>
+              <option value="D">Toward D</option>
+            </select>
+          </label>
+
+          <label class="control-row" id="row-mut-bias-strength" style="display:none">
+            <span class="label-text">Bias strength</span>
+            <input type="range" id="ctrl-mut-bias-strength" min="0" max="100" value="50" />
+            <span class="value-display" id="val-mut-bias-strength">50%</span>
+          </label>
+
           <label class="control-row crossover-row">
             <input type="checkbox" id="ctrl-crossover" />
             <span class="label-text">Sexual reproduction</span>
+          </label>
+
+          <label class="control-row crossover-row">
+            <input type="checkbox" id="ctrl-sexual-selection" />
+            <span class="label-text">Sexual selection</span>
+          </label>
+
+          <label class="control-row" id="row-display-trait" style="display:none">
+            <span class="label-text">Display trait</span>
+            <select id="ctrl-display-trait" class="speed-select">
+              <option value="crest" selected>Cranial crest</option>
+              <option value="markings">Markings</option>
+              <option value="tail">Tail</option>
+              <option value="body">Body size</option>
+            </select>
           </label>
 
           <label class="control-row crossover-row">

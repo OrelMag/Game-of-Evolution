@@ -5,6 +5,7 @@ import { TargetMode } from '../selection/targetMode.js';
 import { PredatorMode } from '../selection/predatorMode.js';
 import { ResourceMode } from '../selection/resourceMode.js';
 import { EpistasisMode } from '../selection/epistasisMode.js';
+import { MetabolicMode } from '../selection/metabolicMode.js';
 import { Genome } from '../genome/genome.js';
 
 /**
@@ -21,6 +22,7 @@ export class SelectionPanel {
     this._envMode       = new EnvironmentMode('deepSea');
     this._resourceMode  = new ResourceMode();
     this._epistasisMode = new EpistasisMode();
+    this._metabolicMode = new MetabolicMode();
 
     this._mount = document.getElementById('selection-panel-mount');
     this._render();
@@ -48,6 +50,30 @@ export class SelectionPanel {
                 `<option value="${k}">${v.label}</option>`
               ).join('')}
             </select>
+            <label class="control-row" style="margin-top:8px;">
+              <span class="label-text">Change over time</span>
+              <select class="speed-select" id="env-dynamics">
+                <option value="static" selected>Static</option>
+                <option value="drift">Climate drift →</option>
+                <option value="oscillate">Seasonal oscillation</option>
+                <option value="catastrophe">Catastrophe cycle</option>
+              </select>
+            </label>
+            <div id="env-dynamics-body" class="hidden">
+              <label class="control-row">
+                <span class="label-text">Toward habitat</span>
+                <select class="env-select" id="env-target">
+                  ${Object.entries(ENVIRONMENTS).map(([k, v]) =>
+                    `<option value="${k}">${v.label}</option>`
+                  ).join('')}
+                </select>
+              </label>
+              <label class="control-row">
+                <span class="label-text">Timescale (gens)</span>
+                <input type="range" id="env-rate" min="2" max="40" value="15" />
+                <span class="value-display" id="val-env-rate">15</span>
+              </label>
+            </div>
             <label class="control-row selection-strength-row">
               <span class="label-text">Strength</span>
               <input type="range" id="env-strength" min="0" max="100" value="60" />
@@ -151,6 +177,31 @@ export class SelectionPanel {
 
         <div class="sel-section">
           <label class="sel-section-header">
+            <input type="checkbox" id="chk-metabolic" />
+            <span>Metabolism</span>
+          </label>
+          <div class="sel-section-body hidden" id="sel-body-metabolic">
+            <p style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">
+              Big bodies, many eyes, long limbs and bright markings cost energy.
+              Staying under the budget is free; exceeding it cuts fitness.
+              Stacks with other modes to force trade-offs — and turns a
+              sexually-selected ornament into a costly handicap.
+            </p>
+            <label class="control-row">
+              <span class="label-text">Energy budget</span>
+              <input type="range" id="metabolic-budget" min="0" max="100" value="40" />
+              <span class="value-display" id="val-metabolic-budget">40%</span>
+            </label>
+            <label class="control-row selection-strength-row">
+              <span class="label-text">Strength</span>
+              <input type="range" id="metabolic-strength" min="0" max="100" value="60" />
+              <span class="value-display" id="val-metabolic-strength">60%</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="sel-section">
+          <label class="sel-section-header">
             <input type="checkbox" id="chk-drift" />
             <span>Genetic drift</span>
           </label>
@@ -191,6 +242,7 @@ export class SelectionPanel {
       { id: 'chk-predator',  key: 'predator' },
       { id: 'chk-resource',  key: 'resource' },
       { id: 'chk-epistasis', key: 'epistasis' },
+      { id: 'chk-metabolic', key: 'metabolic' },
       { id: 'chk-drift',     key: 'drift' },
       { id: 'chk-player',    key: 'player' },
     ];
@@ -226,6 +278,15 @@ export class SelectionPanel {
       document.getElementById('val-env-strength').textContent = e.target.value + '%';
     });
 
+    // Environment temporal dynamics
+    document.getElementById('env-dynamics')?.addEventListener('change', e => {
+      const body = document.getElementById('env-dynamics-body');
+      body?.classList.toggle('hidden', e.target.value === 'static');
+    });
+    document.getElementById('env-rate')?.addEventListener('input', e => {
+      document.getElementById('val-env-rate').textContent = e.target.value;
+    });
+
     // Target genome input
     document.getElementById('target-genome')?.addEventListener('input', e => {
       this._parseTargetInput(e.target.value);
@@ -257,6 +318,15 @@ export class SelectionPanel {
     // Epistasis strength
     document.getElementById('epistasis-strength')?.addEventListener('input', e => {
       document.getElementById('val-epistasis-strength').textContent = e.target.value + '%';
+    });
+
+    // Metabolism
+    document.getElementById('metabolic-budget')?.addEventListener('input', e => {
+      this._metabolicMode.budget = parseInt(e.target.value, 10) / 100;
+      document.getElementById('val-metabolic-budget').textContent = e.target.value + '%';
+    });
+    document.getElementById('metabolic-strength')?.addEventListener('input', e => {
+      document.getElementById('val-metabolic-strength').textContent = e.target.value + '%';
     });
 
     // Genetic drift pop size
@@ -295,6 +365,13 @@ export class SelectionPanel {
     add('pred-strength',      STRENGTH_TEXT);
     add('resource-strength',  STRENGTH_TEXT);
     add('epistasis-strength', STRENGTH_TEXT);
+    add('metabolic-strength', STRENGTH_TEXT);
+
+    add('metabolic-budget',
+      'Energy an organism can spend on costly\ntraits (size, eyes, limbs, markings).\nUnder budget = free; over budget cuts\nfitness. Low budget favours lean body plans.');
+
+    add('env-rate',
+      'Drift: generations to fully reach the\ntarget habitat.\nOscillation / Catastrophe: the period\nin generations.');
 
     add('resource-niche-radius',
       'Hamming distance threshold (% of 120 chars)\nwithin which creatures share a niche.\nSmall = tight niches, more species coexist.\nLarge = broad competition, fewer niches.');
@@ -352,6 +429,14 @@ export class SelectionPanel {
     let predatorMode = null;
 
     if (this._enabledModes.has('env')) {
+      const dyn   = document.getElementById('env-dynamics')?.value ?? 'static';
+      const scale = parseInt(document.getElementById('env-rate')?.value ?? '15', 10);
+      this._envMode.setSchedule({
+        mode:      dyn,
+        targetKey: document.getElementById('env-target')?.value ?? null,
+        rate:      1 / scale,   // drift completes after `scale` generations
+        period:    scale,       // oscillation / catastrophe period
+      });
       const strength = parseInt(document.getElementById('env-strength').value, 10) / 100;
       modes.push({ mode: this._envMode, strength, label: 'Environment' });
     }
@@ -379,6 +464,11 @@ export class SelectionPanel {
       modes.push({ mode: this._epistasisMode, strength, label: 'Epistasis' });
     }
 
+    if (this._enabledModes.has('metabolic')) {
+      const strength = parseInt(document.getElementById('metabolic-strength').value, 10) / 100;
+      modes.push({ mode: this._metabolicMode, strength, label: 'Metabolism' });
+    }
+
     return { engine: new SelectionEngine(modes), predatorMode };
   }
 
@@ -395,6 +485,8 @@ export class SelectionPanel {
       max = Math.max(max, parseInt(document.getElementById('resource-strength')?.value ?? 60, 10) / 100);
     if (this._enabledModes.has('epistasis'))
       max = Math.max(max, parseInt(document.getElementById('epistasis-strength')?.value ?? 40, 10) / 100);
+    if (this._enabledModes.has('metabolic'))
+      max = Math.max(max, parseInt(document.getElementById('metabolic-strength')?.value ?? 60, 10) / 100);
     return max;
   }
 

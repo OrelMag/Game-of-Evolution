@@ -8,12 +8,17 @@ export class Mutator {
    * @param {number}   opts.inversionRate     per-genome part-inversion probability
    * @param {number[]|null} opts.partRates    optional 15-element array of per-part rate
    *                                          multipliers (e.g. [3,3,1,...] for hotspot parts)
+   * @param {'G'|'O'|'D'|null} opts.biasAllele  allele that mutations preferentially produce
+   * @param {number} opts.biasStrength         0 = neutral, 1 = strong directional bias
    */
-  constructor({ mutationRate = 0.01, transpositionRate = 0, inversionRate = 0, partRates = null } = {}) {
+  constructor({ mutationRate = 0.01, transpositionRate = 0, inversionRate = 0, partRates = null,
+                biasAllele = null, biasStrength = 0 } = {}) {
     this.mutationRate      = mutationRate;
     this.transpositionRate = transpositionRate;
     this.inversionRate     = inversionRate;
     this.partRates         = partRates; // null = uniform across all parts
+    this.biasAllele        = biasAllele;
+    this.biasStrength       = biasStrength;
   }
 
   mutate(genome) {
@@ -23,10 +28,28 @@ export class Mutator {
       const rate = this.mutationRate * (this.partRates ? this.partRates[part] : 1.0);
       if (Math.random() < rate) {
         const others = ALPHABET.filter(c => c !== chars[i]);
-        chars[i] = others[Math.floor(Math.random() * others.length)];
+        chars[i] = this._pickTarget(others);
       }
     }
     return new Genome(chars.join(''));
+  }
+
+  // Choose the substituted allele from the two non-current candidates.
+  // Neutral by default; when a bias allele is set and available, it is
+  // over-represented in proportion to biasStrength (compositional pull).
+  _pickTarget(others) {
+    if (!this.biasAllele || this.biasStrength <= 0 || !others.includes(this.biasAllele)) {
+      return others[Math.floor(Math.random() * others.length)];
+    }
+    const BIAS_K = 4; // max extra weight on the favoured allele
+    const weights = others.map(c => c === this.biasAllele ? 1 + this.biasStrength * BIAS_K : 1);
+    const total = weights.reduce((s, w) => s + w, 0);
+    let r = Math.random() * total;
+    for (let i = 0; i < others.length; i++) {
+      r -= weights[i];
+      if (r <= 0) return others[i];
+    }
+    return others[others.length - 1];
   }
 
   // Reverses the 8-char substring of a randomly chosen body part

@@ -113,6 +113,8 @@ export class EnvironmentMode {
   /** @param {string} envKey  key of ENVIRONMENTS */
   constructor(envKey = 'deepSea') {
     this.setEnvironment(envKey);
+    // Static by default — the preferred ratios never change.
+    this.schedule = { mode: 'static', target: null, rate: 0.05, period: 10 };
   }
 
   setEnvironment(envKey) {
@@ -121,19 +123,69 @@ export class EnvironmentMode {
   }
 
   /**
+   * Configure how the preferred ratios change over generations.
+   * @param {object} opts
+   * @param {'static'|'drift'|'oscillate'|'catastrophe'} opts.mode
+   * @param {string} [opts.targetKey]  habitat the environment moves toward
+   * @param {number} [opts.rate]       drift speed (fraction of the way per generation)
+   * @param {number} [opts.period]     oscillation / catastrophe period in generations
+   */
+  setSchedule({ mode = 'static', targetKey = null, rate = 0.05, period = 10 } = {}) {
+    this.schedule = {
+      mode,
+      target: targetKey ? (ENVIRONMENTS[targetKey] ?? null) : null,
+      rate,
+      period: Math.max(1, period),
+    };
+  }
+
+  /**
+   * Effective 15×3 preference array at a given generation, after applying the
+   * temporal schedule. Returns the base prefs when static or no target is set.
+   * @param {number} generation
+   * @returns {number[][]}
+   */
+  _effectivePrefs(generation) {
+    const { mode, target, rate, period } = this.schedule;
+    if (mode === 'static' || !target) return this.env.prefs;
+
+    if (mode === 'catastrophe') {
+      // Alternate between base and target every `period` generations.
+      const flipped = Math.floor(generation / period) % 2 === 1;
+      return flipped ? target.prefs : this.env.prefs;
+    }
+
+    let t;
+    if (mode === 'oscillate') {
+      t = (Math.sin((2 * Math.PI * generation) / period) + 1) / 2;
+    } else { // drift
+      t = Math.max(0, Math.min(1, generation * rate));
+    }
+    return this.env.prefs.map((base, i) => _lerpVec(base, target.prefs[i], t));
+  }
+
+  /**
    * Fitness = mean cosine similarity across all 15 body parts.
    * @param {import('../genome/genome.js').Genome} genome
+   * @param {*} _allNodes  unused
+   * @param {number} [generation]  used by the temporal schedule
    * @returns {number} 0–1
    */
-  computeFitness(genome) {
+  computeFitness(genome, _allNodes, generation = 0) {
+    const prefs = this._effectivePrefs(generation);
     let totalSim = 0;
     for (let i = 0; i < 15; i++) {
       const { gn, on, dn } = genome.decode(i);
-      const [pg, po, pd] = this.env.prefs[i];
+      const [pg, po, pd] = prefs[i];
       totalSim += _cosineSimilarity([gn, on, dn], [pg, po, pd]);
     }
     return totalSim / 15;
   }
+}
+
+// Element-wise linear interpolation between two 3-vectors.
+function _lerpVec(a, b, t) {
+  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 }
 
 function _cosineSimilarity(a, b) {
